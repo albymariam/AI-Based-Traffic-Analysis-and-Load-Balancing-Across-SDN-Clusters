@@ -1,0 +1,24 @@
+# Data Science & Visualization
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+scikit-learn>=1.3.0
+pyyaml>=6.0
+
+# Network Topology & Packet Processing
+networkx>=3.0
+scapy>=2.5.0
+
+# Deep Learning Models (PyTorch & TensorFlow)
+torch>=2.0.0
+tensorflow>=2.13.0
+keras>=2.13.0
+
+# Optimization (for M2 Linear Programming)
+pulp>=2.7.0
+cvxpy>=1.3.0
+
+# Notebooks & Development
+ipython>=8.0.0
+jupyter>=1.0.0
