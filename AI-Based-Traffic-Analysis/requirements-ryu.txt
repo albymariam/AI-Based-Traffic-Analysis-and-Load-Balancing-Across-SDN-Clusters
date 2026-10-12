@@ -1,0 +1,6 @@
+setuptools==65.5.0
+eventlet==0.31.1
+webob
+routes
+requests
+pyyaml
