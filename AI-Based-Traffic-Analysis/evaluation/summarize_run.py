@@ -1,0 +1,74 @@
+"""Compute headline metrics for one run directory from its CSVs."""
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import yaml
+
+
+def _f(x):
+    x = float(x)
+    return None if np.isnan(x) else round(x, 5)
+
+
+def _jfi(x):
+    s2 = (x ** 2).sum()
+    return (x.sum() ** 2) / (len(x) * s2) if s2 > 0 else np.nan
+
+
+def summarize(run_dir):
+    run = Path(run_dir)
+    meta = json.loads((run / "meta.json").read_text())
+    tcfg = yaml.safe_load((run / "traffic.yaml").read_text())
+    warm = tcfg["warmup_s"]
+    out = dict(method=meta["method"], scenario=meta["scenario"], seed=meta["seed"], git=meta["git_hash"])
+
+    tele = pd.read_csv(run / "telemetry.csv")
+    tele = tele[tele.t >= warm]
+    g = tele.groupby("timestep")["utilization"]
+    mlu = g.max()
+    out.update(mean_util=_f(g.mean().mean()), mean_mlu=_f(mlu.mean()), p95_mlu=_f(mlu.quantile(0.95)),
+               peak_mlu=_f(mlu.max()), jfi=_f(g.apply(_jfi).mean()),
+               queue_pkts_mean=_f(tele.queue_length.mean()), link_drops_total=int(tele.packet_loss.sum()),
+               link_delay_ms_mean=_f(tele.delay_ms.mean()))
+
+    fl = pd.read_csv(run / "flows.csv")
+    out["flows_total"] = int(len(fl))
+    out["flows_blocked_pct"] = _f(100 * (fl.status == "skipped").mean())
+    fl = fl[(fl.t_launch >= warm)]
+    ok = fl[fl.status == "ok"]
+    span = max(1.0, tele.t.max() - warm)
+    out["throughput_mbps_aggregate"] = _f(ok.bytes.sum() * 8 / span / 1e6)
+    el = ok[ok.kind == "elephant"]
+    mice = ok[ok.kind == "mice"]
+    out["elephant_goodput_mbps_mean"] = _f(el.bps.mean() / 1e6) if len(el) else None
+    if len(mice):
+        out.update(fct_mean_s=_f(mice.wall_s.mean()), fct_p50_s=_f(mice.wall_s.median()),
+                   fct_p95_s=_f(mice.wall_s.quantile(0.95)))
+    udp = ok[ok.proto == "udp"]
+    if len(udp) and udp.packets.sum() > 0:
+        out["udp_loss_pct"] = _f(100 * udp.lost_packets.sum() / udp.packets.sum())
+        out["udp_jitter_ms_mean"] = _f(udp.jitter_ms.mean())
+    if "pin_ms" in fl and fl.pin_ms.notna().any():
+        out["pin_rest_ms_mean"] = _f(fl.pin_ms.mean())
+
+    pr = pd.read_csv(run / "probes.csv")
+    pr = pr[pr.t >= warm]
+    if len(pr):
+        out.update(rtt_ms_mean=_f(pr.rtt_ms.mean()), rtt_ms_p95=_f(pr.rtt_ms.quantile(0.95)))
+        out["rtt_jitter_ms"] = _f(np.mean([np.abs(np.diff(x.rtt_ms.values)).mean()
+                                           for _, x in pr.groupby(["src", "dst"]) if len(x) > 2]))
+
+    ctrl = pd.read_csv(run / "ctrl.csv")
+    c = ctrl[ctrl.t >= warm]
+    if len(c) > 1:
+        out["flowmods_per_s"] = _f((c.flowmods_total.iloc[-1] - c.flowmods_total.iloc[0]) /
+                                   max(1.0, c.t.iloc[-1] - c.t.iloc[0]))
+    (run / "summary.json").write_text(json.dumps(out, indent=2))
+    return out
+
+
+if __name__ == "__main__":
+    print(json.dumps(summarize(sys.argv[1]), indent=2))

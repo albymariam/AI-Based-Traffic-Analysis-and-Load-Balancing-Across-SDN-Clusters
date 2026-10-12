@@ -14,8 +14,12 @@ flow_mix:
     size_kb: [10, 200]
   elephant:
     share: 0.3
-    rate_mbps: [0.5, 2.0]  # per-flow iperf rate on 10 Mbps links
+    rate_mbps: [1.0, 4.0]  # per-flow iperf rate on 10 Mbps links
     duration_s: [20, 60]
+
+servers_per_host: 8            # concurrent iperf3 flows per destination
+n_probes: 6                    # ping probe pairs
+probe_interval_s: 0.2
 
 profiles:
   steady:
