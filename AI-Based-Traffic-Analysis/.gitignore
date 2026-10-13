@@ -4,6 +4,7 @@ __pycache__/
 data/raw/
 data/processed/
 results/runs/
+results/runs_old_invalid/
 logs/
 *.pt
 *.pth
