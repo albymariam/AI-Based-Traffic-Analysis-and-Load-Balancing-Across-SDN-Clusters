@@ -22,7 +22,7 @@ def build_network(cfg, controller_ip="127.0.0.1", of_port=6653):
     for u, v in cfg["links"]:
         net.addLink(sw[u], sw[v], port1=pmap[u][v], port2=pmap[v][u], cls=TCLink,
                     bw=cfg["emulated_capacity_mbps"], delay="%gms" % cfg["link_delay_ms"],
-                    max_queue_size=100)
+                    max_queue_size=cfg.get("queue_pkts", 30))
     net.start()
     net.staticArp()
     return net, pmap
