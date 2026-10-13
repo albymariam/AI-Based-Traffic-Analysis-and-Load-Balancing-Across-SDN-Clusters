@@ -36,8 +36,7 @@ def summarize(run_dir):
 
     fl = pd.read_csv(run / "flows.csv")
     out["flows_total"] = int(len(fl))
-    out["flows_blocked_pct"] = _f(100 * (fl.status == "skipped").mean())
-    fl = fl[(fl.t_launch >= warm)]
+    out["flows_failed_pct"] = _f(100 * (fl.status != "ok").mean())   # was flows_blocked_pct    fl = fl[(fl.t_launch >= warm)]
     ok = fl[fl.status == "ok"]
     span = max(1.0, tele.t.max() - warm)
     out["throughput_mbps_aggregate"] = _f(ok.bytes.sum() * 8 / span / 1e6)
@@ -45,8 +44,8 @@ def summarize(run_dir):
     mice = ok[ok.kind == "mice"]
     out["elephant_goodput_mbps_mean"] = _f(el.bps.mean() / 1e6) if len(el) else None
     if len(mice):
-        out.update(fct_mean_s=_f(mice.wall_s.mean()), fct_p50_s=_f(mice.wall_s.median()),
-                   fct_p95_s=_f(mice.wall_s.quantile(0.95)))
+        out.update(fct_mean_s=_f(mice.xfer_s.mean()), fct_p50_s=_f(mice.xfer_s.median()),
+                   fct_p95_s=_f(mice.xfer_s.quantile(0.95)))
     udp = ok[ok.proto == "udp"]
     if len(udp) and udp.packets.sum() > 0:
         out["udp_loss_pct"] = _f(100 * udp.lost_packets.sum() / udp.packets.sum())
@@ -66,6 +65,15 @@ def summarize(run_dir):
     if len(c) > 1:
         out["flowmods_per_s"] = _f((c.flowmods_total.iloc[-1] - c.flowmods_total.iloc[0]) /
                                    max(1.0, c.t.iloc[-1] - c.t.iloc[0]))
+        rr = run / "reroutes.csv"
+    if rr.exists():
+        r = pd.read_csv(rr)
+        r = r[r.t >= warm]
+        out["reroutes_total"] = int(len(r))
+        if len(r):
+            out.update(reroute_decision_ms_mean=_f(r.decision_ms.mean()),
+                       reroute_decision_ms_p95=_f(r.decision_ms.quantile(0.95)),
+                       infer_ms_mean=_f(r.infer_ms.mean()))
     (run / "summary.json").write_text(json.dumps(out, indent=2))
     return out
 

@@ -3,6 +3,8 @@ import csv
 import json
 import threading
 import time
+import subprocess
+from pathlib import Path
 
 import numpy as np
 
@@ -31,7 +33,7 @@ def build_pairs(topo_cfg, traffic_cfg, rng):
     allp = [(s, d) for s in sw for d in sw if s != d]
     if pc["mode"] == "all_to_all":
         return allp, np.ones(len(allp)) / len(allp)
-    nw = dict(zip(sw, rng.lognormal(0.0, 0.8, size=len(sw))))
+    nw = dict(zip(sw, rng.lognormal(0.0, pc.get("gravity_sigma", 0.5), size=len(sw))))
     if pc["mode"] == "hotspot":
         for h in pc["hotspot_nodes"]:
             nw[h] *= 5.0
@@ -66,9 +68,16 @@ def build_schedule(topo_cfg, tc, load, profile_name, total_s, seed):
     pairs, w = build_pairs(topo_cfg, tc, rng)
     dist = pm.hop_dist(topo_cfg)
     avg_hops = sum(wi * dist[s][d] for (s, d), wi in zip(pairs, w))
-    cap, ndir = topo_cfg["emulated_capacity_mbps"], 2 * len(topo_cfg["links"])
-    demand_mbps = tc["load_levels"][load] * cap * ndir / avg_hops   # aggregate offered load
-
+    cap = topo_cfg["emulated_capacity_mbps"]
+    # load level = target MLU under static shortest-path routing
+    nh = pm.next_hops(topo_cfg)
+    share = {}
+    for (s, d), wi in zip(pairs, w):
+        p = pm.static_path(nh, s, d)
+        for a, b in zip(p, p[1:]):
+            share[(a, b)] = share.get((a, b), 0.0) + wi
+    demand_mbps = tc["load_levels"][load] * cap / max(share.values())   # aggregate offered Mbps
+    demand_mbps *= tc.get("load_calibration", 1.0)   # tune once so static MLU hits the target
     mix = tc["flow_mix"]
     mean_mice = np.mean(mix["mice"]["size_kb"]) * 0.008                                   # Mbit
     mean_dur = np.mean(mix["elephant"]["duration_s"])
@@ -101,14 +110,17 @@ def build_schedule(topo_cfg, tc, load, profile_name, total_s, seed):
     return flows, pairs, w, info
 
 
-# ---------------------------------------------------------------- iperf3 helpers
-def start_servers(net, topo_cfg, n_ports):
-    procs = []
-    for s in topo_cfg["switches"]:
-        h = net.get("h%d" % s)
-        for k in range(n_ports):
-            procs.append(h.popen(["iperf3", "-s", "-p", str(BASE_PORT + k)]))
-    time.sleep(1.5)
+# ---------------------------------------------------------------- flow execution
+MOUSE_PORT = 6000
+MOUSE_PY = str(Path(__file__).resolve().parent / "mouse.py")
+CONNECT_DELAY = 0.5
+
+
+def start_mouse_servers(net, topo_cfg):
+    procs = [net.get("h%d" % s).popen(["python3", MOUSE_PY, "server", str(MOUSE_PORT)],
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+             for s in topo_cfg["switches"]]
+    time.sleep(1.0)
     return procs
 
 
@@ -129,21 +141,27 @@ def parse_iperf(out, proto):
             "lost_packets": s["lost_packets"], "packets": s["packets"]}
 
 
+def parse_mouse(out):
+    try:
+        j = json.loads(out.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return {"ok": False, "error": "nooutput"}
+    if not j.get("ok"):
+        return {"ok": False, "error": j.get("error", "fail")}
+    return {"ok": True, "bytes": j["bytes"], "xfer_s": j["fct_s"]}
+
+
 class FlowRunner(threading.Thread):
-    def __init__(self, net, schedule, topo_cfg, api, path_fn, run_dir, t0, ports_per_host):
+    """Mice: python client/server, follow default routes (never pinned).
+    Elephants: iperf3, pinned to a path by the policy (this is the TE-controlled traffic)."""
+
+    def __init__(self, net, schedule, topo_cfg, api, path_fn, run_dir, t0):
         super(FlowRunner, self).__init__(daemon=True)
         self.net, self.schedule, self.api, self.path_fn = net, schedule, api, path_fn
         self.run_dir, self.t0 = run_dir, t0
-        self.free = {s: list(range(BASE_PORT, BASE_PORT + ports_per_host)) for s in topo_cfg["switches"]}
+        self.lock = threading.Lock()
         self.active, self.rows = {}, []
         self._halt = threading.Event()
-
-    def _cmd(self, f, port):
-        c = ["iperf3", "-c", pm.host_ip(f["dst"]), "-p", str(port), "-J", "-i", "0"]
-        if f["kind"] == "mice":
-            return c + ["-n", str(f["size_bytes"])]
-        c += ["-b", "%gM" % f["rate_mbps"], "-t", str(int(f["dur_s"]))]
-        return c + (["-u"] if f["proto"] == "udp" else [])
 
     def run(self):
         i, sched = 0, self.schedule
@@ -156,55 +174,87 @@ class FlowRunner(threading.Thread):
             time.sleep(0.02)
 
     def _launch(self, f, now):
+        port = BASE_PORT + f["id"]
+        mouse = f["kind"] == "mice"
         row = dict(flow_id=f["id"], kind=f["kind"], proto=f["proto"], src=f["src"], dst=f["dst"],
-                   t_start=round(f["t_start"], 3), t_launch=round(now, 3),
-                   rate_mbps=f.get("rate_mbps"), size_bytes=f.get("size_bytes"), dur_s=f.get("dur_s"),
-                   dport=None, pin_ms=None, path="", status="skipped")
-        if not self.free[f["dst"]]:
-            self.rows.append(row)               # no free iperf3 server slot -> counted as blocked
-            return
-        port = self.free[f["dst"]].pop(0)
-        row["dport"] = port
-        path = self.path_fn(f["src"], f["dst"]) if self.path_fn else None
+                   t_start=round(f["t_start"], 3), t_launch=round(now, 3), rate_mbps=f.get("rate_mbps"),
+                   size_bytes=f.get("size_bytes"), dur_s=f.get("dur_s"),
+                   dport=MOUSE_PORT if mouse else port, pin_ms=None, path="", n_reroutes=0, status="pending")
         protos = [6] if f["proto"] == "tcp" else [6, 17]
-        if path:
-            try:
-                row["pin_ms"] = round(self.api.pin(f["src"], f["dst"], port, protos, path), 2)
-            except Exception as e:
-                row["status"] = "pin_failed"
-                self.free[f["dst"]].append(port)
-                self.rows.append(row)
-                return
-            row["path"] = "-".join(map(str, path))
-        proc = self.net.get("h%d" % f["src"]).popen(self._cmd(f, port))
-        self.active[proc] = (row, f, time.time(), port, path, protos)
+        path, srv = None, None
+        src_h = self.net.get("h%d" % f["src"])
+        if mouse:
+            cli = src_h.popen(["python3", MOUSE_PY, "client", pm.host_ip(f["dst"]),
+                               str(MOUSE_PORT), str(f["size_bytes"])])
+        else:
+            path = self.path_fn(f["src"], f["dst"]) if self.path_fn else None
+            if path:
+                try:
+                    row["pin_ms"] = round(self.api.pin(f["src"], f["dst"], port, protos, path), 2)
+                except Exception:
+                    row["status"] = "pin_failed"
+                    self.rows.append(row)
+                    return
+                row["path"] = "-".join(map(str, path))
+            srv = self.net.get("h%d" % f["dst"]).popen(
+                ["iperf3", "-s", "-1", "-p", str(port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            cmd = ["iperf3", "-c", pm.host_ip(f["dst"]), "-p", str(port), "-J", "-i", "0",
+                   "-b", "%gM" % f["rate_mbps"], "-t", str(int(f["dur_s"]))]
+            if f["proto"] == "udp":
+                cmd.append("-u")
+            cli = src_h.popen(["sh", "-c", 'sleep %.1f; exec timeout -k 2 %d "$@"'
+                               % (CONNECT_DELAY, int(f["dur_s"]) + 15), "sh"] + cmd)
+        with self.lock:
+            self.active[cli] = dict(row=row, f=f, t=time.time(), port=port, path=path, protos=protos, srv=srv)
 
     def _reap(self, force=False):
-        for proc in list(self.active):
-            row, f, t_l, port, path, protos = self.active[proc]
-            limit = (f.get("dur_s") or 30) + 20
+        with self.lock:
+            items = list(self.active.items())
+        for proc, e in items:
+            f, row = e["f"], e["row"]
             killed = False
             if proc.poll() is None:
-                if force or time.time() - t_l > limit:
+                if force or time.time() - e["t"] > (f.get("dur_s") or 0) + 30:
                     proc.kill()
+                    proc.wait()
                     killed = True
                 else:
                     continue
-            out, _ = proc.communicate()
-            res = parse_iperf(out.decode(errors="ignore"), f["proto"])
-            row["wall_s"] = round(time.time() - t_l, 3)
+            out = b"" if killed else proc.communicate()[0]     # never communicate() on a killed proc
+            if e["srv"] is not None:
+                if e["srv"].poll() is None:
+                    e["srv"].kill()
+                e["srv"].wait()
+            text = out.decode(errors="ignore")
+            res = parse_mouse(text) if f["kind"] == "mice" else parse_iperf(text, f["proto"])
             row.update(res)
+            row["wall_s"] = round(time.time() - e["t"], 3)
             row["status"] = "killed" if killed else ("ok" if res.get("ok") else "failed")
-            if path:
+            if e["path"]:
                 try:
-                    self.api.unpin(f["src"], f["dst"], port, protos)
+                    self.api.unpin(f["src"], f["dst"], e["port"], e["protos"])
                 except Exception:
                     pass
-            self.free[f["dst"]].append(port)
             self.rows.append(row)
-            del self.active[proc]
+            with self.lock:
+                del self.active[proc]
 
-    def finish(self, grace_s=15):
+    # --- used by the online TE policy ---
+    def elephants(self):
+        with self.lock:
+            return [dict(id=e["f"]["id"], src=e["f"]["src"], dst=e["f"]["dst"], port=e["port"],
+                         protos=e["protos"], path=list(e["path"]), rate=e["f"]["rate_mbps"])
+                    for e in self.active.values() if e["f"]["kind"] == "elephant" and e["path"]]
+
+    def set_path(self, flow_id, path):
+        with self.lock:
+            for e in self.active.values():
+                if e["f"]["id"] == flow_id:
+                    e["path"] = list(path)
+                    e["row"]["n_reroutes"] += 1
+                    e["row"]["path"] += ">" + "-".join(map(str, path))
+
+    def finish(self, grace_s=10):
         self._halt.set()
         self.join(timeout=2)
         t = time.time()

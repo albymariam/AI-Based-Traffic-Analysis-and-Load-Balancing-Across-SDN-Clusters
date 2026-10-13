@@ -1,8 +1,14 @@
 # Load levels = fraction of emulated link capacity targeted on average
-load_levels:
-  light: 0.25
-  moderate: 0.50
-  near_saturation: 0.80
+load_levels:            # target MLU under static shortest-path routing
+  light: 0.45
+  moderate: 0.75
+  near_saturation: 0.95
+
+pairs:
+  mode: random_gravity
+  num_pairs: 24
+  gravity_sigma: 0.5
+  hotspot_nodes: [6, 11]
 
 duration_s: 300            # per run
 warmup_s: 20
@@ -14,10 +20,9 @@ flow_mix:
     size_kb: [10, 200]
   elephant:
     share: 0.3
-    rate_mbps: [1.0, 4.0]  # per-flow iperf rate on 10 Mbps links
+    rate_mbps: [0.5, 2.0]  # per-flow iperf rate on 10 Mbps links
     duration_s: [20, 60]
 
-servers_per_host: 8            # concurrent iperf3 flows per destination
 n_probes: 6                    # ping probe pairs
 probe_interval_s: 0.2
 

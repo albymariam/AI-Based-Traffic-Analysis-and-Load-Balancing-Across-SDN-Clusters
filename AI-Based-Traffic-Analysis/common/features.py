@@ -1,0 +1,2 @@
+# active_flows is excluded on purpose: it only exists when flows are pinned, so it would differ between methods.
+FEATURES = ["byte_throughput", "packet_rate", "utilization", "queue_length", "delay_ms", "packet_loss"]

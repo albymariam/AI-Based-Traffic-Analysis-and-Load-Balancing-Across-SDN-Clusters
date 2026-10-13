@@ -5,6 +5,8 @@ import re
 import subprocess
 import threading
 import time
+from collections import deque
+from common.features import FEATURES
 
 from topology import portmap as pm
 
@@ -31,6 +33,7 @@ def read_tc():
 class TelemetryLogger(threading.Thread):
     def __init__(self, api, topo_cfg, pmap, run_dir, t0, interval=1.0):
         super(TelemetryLogger, self).__init__(daemon=True)
+        self.hist = {}
         self.api, self.cfg, self.pmap, self.t0, self.interval = api, topo_cfg, pmap, t0, interval
         self.links = [(u, v) for u, v in topo_cfg["links"]] + [(v, u) for u, v in topo_cfg["links"]]
         self.cap_bps = topo_cfg["emulated_capacity_mbps"] * 1e6
@@ -75,14 +78,16 @@ class TelemetryLogger(threading.Thread):
             bps = (now[1] - pv[1]) / dt                       # bytes/s
             raw = bps * 8 / self.cap_bps
             qb = q.get("backlog_b", 0)
-            self.w1.writerow(dict(
+            row = dict(
                 timestep=k, t=round(t, 3), link_id="L_%d_%d" % (u, v), src=u, dst=v,
                 byte_throughput=round(bps, 1), packet_rate=round((now[2] - pv[2]) / dt, 2),
                 active_flows=lf.get("%d-%d" % (u, v), 0),
                 utilization=round(min(raw, 1.0), 5), utilization_raw=round(raw, 5),
                 queue_length=q.get("backlog_p", 0),
                 delay_ms=round(self.prop_ms + qb * 8 / self.cap_bps * 1000, 4),
-                packet_loss=now[3] - pv[3]))
+                packet_loss=now[3] - pv[3])
+            self.w1.writerow(row)
+            self.hist.setdefault((u, v), deque(maxlen=64)).append([row[x] for x in FEATURES])
         self.f1.flush()
         self.f2.flush()
 

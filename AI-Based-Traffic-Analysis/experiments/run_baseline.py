@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from traffic.generator import FlowRunner, build_pairs, build_schedule, start_mouse_servers
+
 
 import numpy as np
 
@@ -27,11 +29,11 @@ from evaluation.summarize_run import summarize
 from topology import portmap as pm
 from topology.mininet_net import build_network
 from topology.mininet_topology import create_nsfnet_topology, get_k_shortest_paths
-from traffic.generator import FlowRunner, build_pairs, build_schedule, start_servers
+from traffic.generator import FlowRunner, build_pairs, build_schedule
 
 METHODS = {"static_shortest": ("static", None), "static_tracked": ("static", "shortest"),
-           "ecmp": ("ecmp", None), "round_robin": ("static", "rr")}
-
+           "ecmp": ("ecmp", None), "round_robin": ("static", "rr"),
+           "lstm_hysteresis": ("static", "shortest")}
 
 class PathPolicy:
     def __init__(self, kind, G, cfg):
@@ -122,7 +124,7 @@ def main():
 
         G = create_nsfnet_topology(topo)
         policy = PathPolicy(pol_kind, G, topo) if pol_kind else None
-        servers = start_servers(net, topo, tcfg["servers_per_host"])
+        mservers = start_mouse_servers(net, topo)
         probe_pairs = [pairs[i] for i in np.argsort(-w)[:tcfg["n_probes"]]]
 
         t0 = time.time()
@@ -130,10 +132,16 @@ def main():
                                topo, pmap, run, t0, exp["telemetry"]["poll_interval_s"])
         runner = FlowRunner(net, sched, topo, TEClient(exp["controller"]["rest_host"],
                             exp["controller"]["rest_port"]), policy.path if policy else None,
-                            run, t0, tcfg["servers_per_host"])
+                            run, t0)
         tele.start()
         probes = start_probes(net, probe_pairs, policy, api, total, tcfg["probe_interval_s"])
         runner.start()
+        ctl = None
+        if a.method == "lstm_hysteresis":
+            from controller.lstm_policy import LSTMReroute
+            ctl = LSTMReroute(TEClient(exp["controller"]["rest_host"], exp["controller"]["rest_port"]),
+                              tele, runner, G, topo, exp, run, t0)
+            ctl.start()
 
         while time.time() - t0 < total:
             time.sleep(1)
@@ -141,9 +149,11 @@ def main():
                   end="", flush=True)
         print()
         runner.finish()
+        if ctl:
+            ctl.stop()
         collect_probes(probes, run, t0)
         tele.stop()
-        for p in servers:
+        for p in mservers:
             p.kill()
 
         meta = json.loads((run / "meta.json").read_text())
