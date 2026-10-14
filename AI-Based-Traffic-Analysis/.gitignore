@@ -1,15 +1,16 @@
 __pycache__/
 *.pyc
-.venv/
 data/raw/
 data/processed/
 results/runs/
 results/runs_old_invalid/
+results/_mockup_DO_NOT_CITE/
 logs/
-*.pt
-*.pth
+# NOT ignored on purpose: models/checkpoints/*.pt, results/tables, results/figures,
+# results/archive, results/summaries
 # Python environments and tooling
 venv/
+.venv
 .env
 .env.*
 !.env.example
@@ -18,7 +19,6 @@ venv/
 .ruff_cache/
 
 # Experiment outputs and temporary files
-results/*
 !results/.gitkeep
 *.log
 *.tmp
