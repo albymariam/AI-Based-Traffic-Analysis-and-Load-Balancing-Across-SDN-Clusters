@@ -1,0 +1,1 @@
+{"norm": {"lo": [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], "rng": [1260802.25, 1035.22998046875, 1.0, 30.0, 122.92960357666016, 212.0]}, "features": ["byte_throughput", "packet_rate", "utilization", "queue_length", "delay_ms", "packet_loss"], "window": 10, "horizon": 5, "split_seeds": {"test": [104], "val": [103], "train": [101, 102]}, "pool_min_seed": 100}
