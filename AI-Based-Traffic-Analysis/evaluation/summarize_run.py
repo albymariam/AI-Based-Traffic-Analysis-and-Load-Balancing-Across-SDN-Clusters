@@ -74,6 +74,15 @@ def summarize(run_dir):
             out.update(reroute_decision_ms_mean=_f(r.decision_ms.mean()),
                        reroute_decision_ms_p95=_f(r.decision_ms.quantile(0.95)),
                        infer_ms_mean=_f(r.infer_ms.mean()))
+
+    pl = run / "plans.csv"
+    if pl.exists():
+        p = pd.read_csv(pl)
+        p = p[p.t >= warm]
+        if len(p):
+            out.update(lp_solves=int(len(p)), plans_applied=int(p.applied.sum()),
+                       lp_solve_ms_mean=_f(p.lp_ms.mean()), lp_solve_ms_p95=_f(p.lp_ms.quantile(0.95)),
+                       predicted_mlu_gain_mean=_f((p.theta_cur - p.theta_plan).mean()))
     (run / "summary.json").write_text(json.dumps(out, indent=2))
     return out
 

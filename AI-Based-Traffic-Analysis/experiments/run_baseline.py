@@ -33,7 +33,9 @@ from traffic.generator import FlowRunner, build_pairs, build_schedule
 
 METHODS = {"static_shortest": ("static", None), "static_tracked": ("static", "shortest"),
            "ecmp": ("ecmp", None), "round_robin": ("static", "rr"),
-           "lstm_hysteresis": ("static", "shortest")}
+           "lstm_hysteresis": ("static", "shortest"),
+           "transformer_minmax_lp": ("static", "shortest"),
+           "tcn_minmax_lp": ("static", "shortest")}
 
 class PathPolicy:
     def __init__(self, kind, G, cfg):
@@ -137,10 +139,15 @@ def main():
         probes = start_probes(net, probe_pairs, policy, api, total, tcfg["probe_interval_s"])
         runner.start()
         ctl = None
+        mk_api = lambda: TEClient(exp["controller"]["rest_host"], exp["controller"]["rest_port"])
         if a.method == "lstm_hysteresis":
             from controller.lstm_policy import LSTMReroute
-            ctl = LSTMReroute(TEClient(exp["controller"]["rest_host"], exp["controller"]["rest_port"]),
-                              tele, runner, G, topo, exp, run, t0)
+            ctl = LSTMReroute(mk_api(), tele, runner, G, topo, exp, run, t0)
+            ctl.start()
+        elif a.method in ("transformer_minmax_lp", "tcn_minmax_lp"):
+            from controller.lp_policy import LPReroute
+            ctl = LPReroute(mk_api(), tele, runner, G, topo, exp, run, t0,
+                            arch=a.method.split("_")[0])
             ctl.start()
 
         while time.time() - t0 < total:

@@ -41,3 +41,23 @@ paths:
   processed: data/processed
   runs: results/runs
   figures: results/figures
+
+
+predictor_m2:
+  d_model: 32
+  n_heads: 4
+  n_layers: 2
+  ff_dim: 64
+  dropout: 0.1
+  tcn_channels: 32
+  weight_decay: 0.0001
+  huber_beta: 0.05
+
+lp:
+  interval_s: 2.0
+  aggregate: mean          # mean | max of the H-step forecast used as background load
+  eta: 0.05                # apply a new plan only if predicted MLU drops by more than this
+  cooldown_s: 5
+  stickiness: 0.25         # prefer a flow's current path when rounding the LP split
+  max_moves_per_tick: 6
+  hop_epsilon: 0.001       # tie-break toward shorter paths
