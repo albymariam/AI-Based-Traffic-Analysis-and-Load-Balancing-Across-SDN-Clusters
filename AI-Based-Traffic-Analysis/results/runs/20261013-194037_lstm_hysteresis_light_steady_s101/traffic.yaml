@@ -1,0 +1,46 @@
+# Load levels = fraction of emulated link capacity targeted on average
+load_levels:            # target MLU under static shortest-path routing
+  light: 0.45
+  moderate: 0.75
+  near_saturation: 0.95
+
+pairs:
+  mode: random_gravity
+  num_pairs: 24
+  gravity_sigma: 0.5
+  hotspot_nodes: [6, 11]
+
+duration_s: 300            # per run
+warmup_s: 20
+tcp_fraction: 0.8          # rest UDP
+
+flow_mix:
+  mice:
+    share: 0.7             # share of flows
+    size_kb: [10, 200]
+  elephant:
+    share: 0.3
+    rate_mbps: [0.5, 2.0]  # per-flow iperf rate on 10 Mbps links
+    duration_s: [20, 60]
+
+n_probes: 6                    # ping probe pairs
+probe_interval_s: 0.2
+
+profiles:
+  steady:
+    shape: constant
+  bursty:
+    shape: on_off
+    period_s: 30
+    duty: 0.4
+    burst_multiplier: 2.0
+  ramp:
+    shape: ramp
+    start_factor: 0.3
+    end_factor: 1.2
+
+# Source-destination pair selection
+pairs:
+  mode: random_gravity       # random_gravity | all_to_all | hotspot
+  num_pairs: 24
+  hotspot_nodes: [6, 11]     # used for hotspot mode
