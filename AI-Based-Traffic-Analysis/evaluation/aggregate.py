@@ -35,6 +35,7 @@ for d in sorted(RUNS.glob("*/")):
             r["dir"] = str(d)
             rows.append(r)
 df = pd.DataFrame(rows)
+df = df.sort_values("dir").drop_duplicates(["scenario", "method", "seed"], keep="last")  # latest run wins
 mets = [m for m in METRICS if m in df]
 
 # ---- table: mean ± CI

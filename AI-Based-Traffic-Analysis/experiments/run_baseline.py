@@ -37,6 +37,9 @@ METHODS = {"static_shortest": ("static", None), "static_tracked": ("static", "sh
            "transformer_minmax_lp": ("static", "shortest"),
            "tcn_minmax_lp": ("static", "shortest")}
 
+for _s in (0, 1, 2, 5, 10, 20):
+    METHODS["dist_lp_s%d" % _s] = ("static", "shortest")
+
 class PathPolicy:
     def __init__(self, kind, G, cfg):
         self.kind, self.G, self.cfg = kind, G, cfg
@@ -148,6 +151,11 @@ def main():
             from controller.lp_policy import LPReroute
             ctl = LPReroute(mk_api(), tele, runner, G, topo, exp, run, t0,
                             arch=a.method.split("_")[0])
+            ctl.start()
+        elif a.method.startswith("dist_lp_s"):
+            from controller.dist_lp_policy import DistLPReroute
+            ctl = DistLPReroute(mk_api(), tele, runner, G, topo, exp, run, t0, arch="transformer",
+                                stale_s=float(a.method[len("dist_lp_s"):]))
             ctl.start()
 
         while time.time() - t0 < total:

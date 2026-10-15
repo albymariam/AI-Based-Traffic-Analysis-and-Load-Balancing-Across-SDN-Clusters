@@ -31,3 +31,9 @@ links:
   - [11, 12]
   - [11, 14]
   - [12, 13]
+
+# Logical controller domains (arbitrary balanced partition; each domain is connected)
+domains:
+  A: [1, 2, 3, 4, 5]
+  B: [6, 12, 13, 14]
+  C: [7, 8, 9, 10, 11]

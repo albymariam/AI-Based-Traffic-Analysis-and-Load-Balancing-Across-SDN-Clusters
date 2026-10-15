@@ -25,9 +25,9 @@ class LPReroute(threading.Thread):
                                  FEATURES.index("utilization"), ck["pc"])
         self.model.load_state_dict(ck["state"])
         self.model.eval()
-        lp = exp_cfg["lp"]
-        self.lp = lp
+        self.lp = exp_cfg["lp"]
         self.api, self.tele, self.runner, self.G, self.t0 = api, tele, runner, G, t0
+        self.run_dir = run_dir
         self.cap = float(topo_cfg["emulated_capacity_mbps"])
         self.k = topo_cfg["k_paths"]
         self.links = [(u, v) for u, v in topo_cfg["links"]] + [(v, u) for u, v in topo_cfg["links"]]
@@ -65,29 +65,41 @@ class LPReroute(threading.Thread):
                 load[l] += e["rate"] / self.cap
         return max(load.values())
 
-    def tick(self):
-        t_in = time.perf_counter()
+    def _contrib(self, els):
+        c = {}
+        for e in els:
+            for l in zip(e["path"], e["path"][1:]):
+                c[l] = c.get(l, 0.0) + e["rate"] / self.cap
+        return c
+
+    def _windows(self):
         hist = self.tele.hist
         if any(len(hist.get(l, ())) < self.W for l in self.links):
+            return None
+        return np.array([list(hist[l])[-self.W:] for l in self.links], dtype=np.float32)
+
+    def _forecast(self, X):
+        with torch.no_grad():
+            P = self.model(torch.from_numpy(normalize(X, self.norm))).numpy()
+        agg = P.mean(1) if self.lp["aggregate"] == "mean" else P.max(1)
+        return {l: float(agg[i]) for i, l in enumerate(self.links)}
+
+    def tick(self):
+        t_in = time.perf_counter()
+        X = self._windows()
+        if X is None:
             return
         els = self.runner.elephants()
         if not els:
             return
-        X = np.array([list(hist[l])[-self.W:] for l in self.links], dtype=np.float32)
-        with torch.no_grad():
-            P = self.model(torch.from_numpy(normalize(X, self.norm))).numpy()
-        agg = P.mean(1) if self.lp["aggregate"] == "mean" else P.max(1)
-        uhat = {l: float(agg[i]) for i, l in enumerate(self.links)}
+        uhat = self._forecast(X)
         infer_ms = (time.perf_counter() - t_in) * 1000
         now = time.time() - self.t0
-
-        # background = forecast minus what our controllable elephants currently contribute
-        contrib = {}
-        for e in els:
-            for l in zip(e["path"], e["path"][1:]):
-                contrib[l] = contrib.get(l, 0.0) + e["rate"] / self.cap
+        contrib = self._contrib(els)
         ubg = {l: max(0.0, uhat[l] - contrib.get(l, 0.0)) for l in self.links}
+        self._plan_and_apply(els, ubg, infer_ms, t_in, now)
 
+    def _plan_and_apply(self, els, ubg, infer_ms, t_in, now, extra=()):
         groups = {}
         for e in els:
             groups.setdefault((e["src"], e["dst"]), []).append(e)
@@ -143,7 +155,8 @@ class LPReroute(threading.Thread):
                                  round(infer_ms, 2), round(dec_ms, 2), round(pin_ms, 2), round(lp_ms, 2)])
             self.fh.flush()
         self.wp.writerow([round(now, 2), len(els), len(coms), round(theta_cur, 4), round(theta_frac, 4),
-                          round(theta_plan, 4), round(infer_ms, 2), round(lp_ms, 2), applied, n_moves])
+                          round(theta_plan, 4), round(infer_ms, 2), round(lp_ms, 2), applied, n_moves]
+                         + list(extra))
         self.fp.flush()
 
     def stop(self):
