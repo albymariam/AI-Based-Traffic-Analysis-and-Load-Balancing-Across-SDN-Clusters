@@ -68,6 +68,7 @@ def seasonal_naive(M, H, W, series, lag):
 
 # ------------------------------------------------------------------ models
 def build(kind, P, W, H, fc):
+    import torch
     import torch.nn as nn
 
     class LSTM(nn.Module):
@@ -106,7 +107,19 @@ def build(kind, P, W, H, fc):
             y = s.net(x.transpose(1, 2))
             return x[:, -1:, :] + s.head(y[:, :, -1]).view(-1, H, P)   # residual on the last observation
 
-    return (LSTM if kind == "lstm" else TCN)(fc[kind])
+    class Transformer(nn.Module):
+        def __init__(s, c):
+            super().__init__()
+            s.inp, s.pos = nn.Linear(P, c["d_model"]), nn.Parameter(torch.zeros(1, W, c["d_model"]))
+            layer = nn.TransformerEncoderLayer(c["d_model"], c["heads"], c["ff"], c["dropout"], batch_first=True)
+            s.enc = nn.TransformerEncoder(layer, c["layers"])
+            s.head = nn.Linear(c["d_model"], H * P)
+
+        def forward(s, x):
+            y = s.enc(s.inp(x) + s.pos)
+            return x[:, -1:, :] + s.head(y[:, -1]).view(-1, H, P)      # residual on the last observation
+
+    return {"lstm": LSTM, "tcn": TCN, "transformer": Transformer}[kind](fc[kind])
 
 
 def train_model(kind, D, sc, fc, seed, out_dir):
@@ -169,7 +182,7 @@ def acf_lag(mb, train_weeks, lag):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", nargs="+", default=["persistence", "seasonal", "lstm", "tcn"])
+    ap.add_argument("--models", nargs="+", default=["persistence", "seasonal", "lstm", "tcn", "transformer"])
     ap.add_argument("--seeds", nargs="+", type=int)
     a = ap.parse_args()
     cfg = yaml.safe_load(open(ROOT / "configs" / "abilene.yaml"))
@@ -194,7 +207,7 @@ def main():
         preds["persistence"] = persistence(te["X"][keep], H)
     if "seasonal" in a.models and lag_ok:
         preds["seasonal_naive"] = Psn[keep]
-    for kind in [k for k in a.models if k in ("lstm", "tcn")]:
+    for kind in [k for k in a.models if k in ("lstm", "tcn", "transformer")]:
         for seed in a.seeds or fc["seeds"]:
             m = train_model(kind, D, sc, fc, seed, out)
             P, ms = predict(m, te["X"][keep], sc)
@@ -205,7 +218,11 @@ def main():
     np.save(out / "actual_test.npy", Y.astype(np.float32)); np.save(out / "meta_test.npy", te["M"][keep])
     df = pd.DataFrame(rows)
     df["infer_ms_per_window"] = df["model"].map(lat)
-    df.to_csv(ROOT / "results" / "tables" / "abilene_forecast_metrics.csv", index=False)
+    tp = ROOT / "results" / "tables" / "abilene_forecast_metrics.csv"
+    if tp.exists():                                       # a later run adds models; it does not erase earlier ones
+        old = pd.read_csv(tp)
+        df = pd.concat([old[~old.model.isin(df.model.unique())], df], ignore_index=True)
+    df.to_csv(tp, index=False)
     (out / "run_config.json").write_text(json.dumps({"cfg": cfg, "split_weeks": split, "n_test_windows": int(keep.sum()),
                                                       "od_columns": cols.tolist()}, indent=2))
     print(df[df.scope == "all"].round(4).to_string(index=False))

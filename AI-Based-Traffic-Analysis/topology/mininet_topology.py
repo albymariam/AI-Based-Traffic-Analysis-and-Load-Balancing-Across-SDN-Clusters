@@ -21,7 +21,8 @@ def create_nsfnet_topology(cfg: dict | None = None) -> nx.Graph:
             emu_capacity=float(cfg["emulated_capacity_mbps"]),
             delay=float(cfg["link_delay_ms"]),
         )
-    assert G.number_of_nodes() == 14 and G.number_of_edges() == 21, "NSFNET must be 14 nodes / 21 links"
+    if cfg.get("name", "nsfnet14") == "nsfnet14":
+        assert G.number_of_nodes() == 14 and G.number_of_edges() == 21, "NSFNET must be 14 nodes / 21 links"
     return G
 
 

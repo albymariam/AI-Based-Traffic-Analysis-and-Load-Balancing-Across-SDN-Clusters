@@ -8,12 +8,18 @@ R = Path(__file__).resolve().parents[1]
 
 def sub(rel, old, new, marker):
     p = R / rel
-    s = p.read_text()
+    with open(p, newline="") as fh:                      # keep the file's own line endings (CRLF or LF)
+        s = fh.read()
+    crlf = "\r\n" in s
+    if crlf:
+        s, old, new = s.replace("\r\n", "\n"), old.replace("\n", "\n"), new
     if marker in s:
         print("already patched:", rel)
         return
     assert s.count(old) == 1, "%s: anchor not found exactly once:\n%s" % (rel, old)
-    p.write_text(s.replace(old, new))
+    s = s.replace(old, new)
+    with open(p, "w", newline="") as fh:
+        fh.write(s.replace("\n", "\r\n") if crlf else s)
     print("patched:", rel)
 
 

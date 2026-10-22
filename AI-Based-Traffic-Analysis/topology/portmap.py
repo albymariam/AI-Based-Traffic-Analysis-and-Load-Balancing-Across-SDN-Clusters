@@ -14,7 +14,10 @@ HOST_PORT = 1
 
 
 def load_yaml(name):
-    with open(ROOT / "configs" / ("%s.yaml" % name)) as f:
+    import os
+    v = os.environ.get("T11_TOPOLOGY", "")
+    fn = "topology_%s.yaml" % v if (name == "topology" and v) else "%s.yaml" % name
+    with open(ROOT / "configs" / fn) as f:
         return yaml.safe_load(f)
 
 
