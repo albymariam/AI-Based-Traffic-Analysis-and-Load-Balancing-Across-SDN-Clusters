@@ -155,8 +155,16 @@ def predict(m, X, sc):
 
 
 def acf_lag(mb, train_weeks, lag):
-    t = np.concatenate([mb[k].sum(1) - mb[k].sum(1).mean() for k in train_weeks if len(mb[k]) > lag])
-    return float((t[:-lag] * t[lag:]).sum() / (t * t).sum())
+    """Autocorrelation of total demand at `lag`, pairing samples only inside the same week."""
+    num = den = 0.0
+    for k in train_weeks:
+        t = mb[k].sum(1)
+        if len(t) <= lag:
+            continue
+        t = t - np.nanmean(t)
+        num += float(np.nansum(t[:-lag] * t[lag:]))
+        den += float(np.nansum(t * t))
+    return num / den if den else float("nan")
 
 
 def main():
