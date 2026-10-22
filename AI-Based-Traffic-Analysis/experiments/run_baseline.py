@@ -105,6 +105,10 @@ def main():
     try:
         net, pmap = build_network(topo, exp["controller"]["rest_host"], exp["controller"]["of_port"])
         api.wait_switches(len(topo["switches"]))
+        ryu_topo = api.stats().get("topology")
+        if ryu_topo != topo.get("name"):
+            sys.exit("Ryu is running topology %r but this run uses %r. Restart Ryu: T11_TOPOLOGY=%s ./scripts/start_ryu.sh"
+                     % (ryu_topo, topo.get("name"), os.environ.get("T11_TOPOLOGY", "<name>")))
         api.set_mode(mode)
         time.sleep(2)
         if a.check:

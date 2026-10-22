@@ -197,7 +197,7 @@ class TEController(ControllerBase):
     def stats(self, req, **kw):
         a = self.app
         return _json({"mode": a.mode, "switches": len(a.dps), "pinned": len(a.flows),
-                      "flowmods": a.flowmods, "ts": time.time()})
+                      "flowmods": a.flowmods, "ts": time.time(), "topology": a.cfg.get("name")})
 
     @route("te_ports", "/te/ports", methods=["GET"])
     def ports(self, req, **kw):
