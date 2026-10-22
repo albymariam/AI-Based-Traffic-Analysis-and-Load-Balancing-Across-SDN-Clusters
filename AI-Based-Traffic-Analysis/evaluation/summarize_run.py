@@ -32,14 +32,20 @@ def summarize(run_dir):
     out.update(mean_util=_f(g.mean().mean()), mean_mlu=_f(mlu.mean()), p95_mlu=_f(mlu.quantile(0.95)),
                peak_mlu=_f(mlu.max()), jfi=_f(g.apply(_jfi).mean()),
                queue_pkts_mean=_f(tele.queue_length.mean()), link_drops_total=int(tele.packet_loss.sum()),
-               link_delay_ms_mean=_f(tele.delay_ms.mean()))
+               link_delay_ms_mean=_f(tele.delay_ms.mean()),
+               congested_link_pct=_f(100 * (tele.utilization_raw >= 0.95).mean()),
+               congestion_events=int((mlu >= 0.95).astype(int).diff().fillna(0).clip(lower=0).sum()))
 
     fl = pd.read_csv(run / "flows.csv")
+    fl = fl[fl.t_launch >= warm]
     out["flows_total"] = int(len(fl))
-    out["flows_failed_pct"] = _f(100 * (fl.status != "ok").mean())   # was flows_blocked_pct    fl = fl[(fl.t_launch >= warm)]
+    out["flows_failed_pct"] = _f(100 * (fl.status != "ok").mean()) if len(fl) else None
     ok = fl[fl.status == "ok"]
     span = max(1.0, tele.t.max() - warm)
     out["throughput_mbps_aggregate"] = _f(ok.bytes.sum() * 8 / span / 1e6)
+    offered = (fl.rate_mbps * fl.dur_s).sum() / span          # elephants only (mice have no rate)
+    out["offered_mbps"] = _f(offered)
+    out["carried_over_offered"] = _f(ok[ok.kind == "elephant"].bytes.sum() * 8 / span / 1e6 / offered) if offered > 0 else None
     el = ok[ok.kind == "elephant"]
     mice = ok[ok.kind == "mice"]
     out["elephant_goodput_mbps_mean"] = _f(el.bps.mean() / 1e6) if len(el) else None
@@ -52,6 +58,7 @@ def summarize(run_dir):
         out["udp_jitter_ms_mean"] = _f(udp.jitter_ms.mean())
     if "pin_ms" in fl and fl.pin_ms.notna().any():
         out["pin_rest_ms_mean"] = _f(fl.pin_ms.mean())
+        out["pin_rest_ms_p95"] = _f(fl.pin_ms.quantile(0.95))
 
     pr = pd.read_csv(run / "probes.csv")
     pr = pr[pr.t >= warm]
@@ -65,7 +72,10 @@ def summarize(run_dir):
     if len(c) > 1:
         out["flowmods_per_s"] = _f((c.flowmods_total.iloc[-1] - c.flowmods_total.iloc[0]) /
                                    max(1.0, c.t.iloc[-1] - c.t.iloc[0]))
-        rr = run / "reroutes.csv"
+        for col, name in (("cpu_pct", "ctrl_cpu_pct_mean"), ("rss_mb", "ctrl_rss_mb_max")):
+            if col in c:                                       # optional: only if the logger records them
+                out[name] = _f(c[col].max() if col == "rss_mb" else c[col].mean())
+    rr = run / "reroutes.csv"
     if rr.exists():
         r = pd.read_csv(rr)
         r = r[r.t >= warm]
