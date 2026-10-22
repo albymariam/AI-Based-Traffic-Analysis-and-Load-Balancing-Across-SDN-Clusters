@@ -37,6 +37,9 @@ def summarize(run_dir):
                congestion_events=int((mlu >= 0.95).astype(int).diff().fillna(0).clip(lower=0).sum()))
 
     fl = pd.read_csv(run / "flows.csv")
+    for c in ("bytes", "bps", "xfer_s", "jitter_ms", "lost_percent", "lost_packets", "packets", "pin_ms"):
+        if c not in fl:                                       # absent when no flow of that kind succeeded
+            fl[c] = np.nan
     fl = fl[fl.t_launch >= warm]
     out["flows_total"] = int(len(fl))
     out["flows_failed_pct"] = _f(100 * (fl.status != "ok").mean()) if len(fl) else None
