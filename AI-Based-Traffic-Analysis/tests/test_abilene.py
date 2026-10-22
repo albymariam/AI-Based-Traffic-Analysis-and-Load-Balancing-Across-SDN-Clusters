@@ -82,3 +82,13 @@ def test_replay_schedule_coverage_and_rates():
     dem = np.random.default_rng(1).lognormal(2, 1, (10, len(pairs)))
     fl, info = build_schedule(dem, topo, cfg, 20.0, pairs)
     assert 0 < info["coverage_top_pairs"] <= 1 and fl and all(f["rate_mbps"] >= cfg["min_rate_mbps"] for f in fl)
+
+
+def test_segment_for_seed_mapping():
+    from abilene.replay import segment_for
+    sp = {"train": list(range(1, 18)), "test": [22, 23, 24]}
+    ev = [segment_for(s, sp) for s in range(1, 11)]
+    tr = [segment_for(s, sp) for s in range(101, 113)]
+    assert len(set(ev)) == 10 and len(set(tr)) == 12                 # every seed gets its own segment
+    assert {w for w, _ in ev} <= set(sp["test"]) and {w for w, _ in tr} <= set(sp["train"])
+    assert segment_for(3, sp) == segment_for(3, sp)                  # deterministic -> paired across methods

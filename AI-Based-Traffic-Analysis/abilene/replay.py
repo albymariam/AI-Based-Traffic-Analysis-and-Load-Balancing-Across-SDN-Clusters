@@ -76,8 +76,16 @@ def load_schedule(path, topo_cfg):
     return flows, pairs, wt, info
 
 
+def segment_for(seed, split):
+    """Deterministic (week, start) for a seed: seeds < 100 -> TEST weeks (evaluation), seeds >= 100 -> TRAIN weeks
+    (telemetry collection). Different seeds give different weeks / times of week; all methods share a seed's segment."""
+    pool, i = (split["test"], seed - 1) if seed < 100 else (split["train"], seed - 100)
+    return pool[i % len(pool)], 60 + 240 * ((i * 3) % 7)
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--seed", type=int, help="pick week/start from the seed (see segment_for); overrides --week/--start")
     ap.add_argument("--week", type=int, help="test week to replay (default: first test week)")
     ap.add_argument("--start", type=int, default=0, help="first 5-min step inside the week")
     ap.add_argument("--out", default="results/abilene/replay_schedule.csv")
@@ -91,10 +99,14 @@ def main():
     weeks, _ = load_real(ROOT / dc["raw_dir"], dc["layout"])
     weeks, _ = clean(weeks)
     _, _, split, _, cols = prepare(cfg)
-    wk = a.week or split["test"][0]
-    seg = to_mbps(weeks[wk][a.start:a.start + rc["n_steps"]][:, cols], dc["bytes_per_unit"], dc["interval_s"])
-    if np.isnan(seg).any():
-        raise SystemExit("NaN in replay segment; choose another --start/--week (nothing is imputed)")
+    wk, start = segment_for(a.seed, split) if a.seed else (a.week or split["test"][0], a.start)
+    for shift in range(0, 600, 60):                                   # nothing is imputed: move on to the next clean segment
+        seg = to_mbps(weeks[wk][start + shift:start + shift + rc["n_steps"]][:, cols], dc["bytes_per_unit"], dc["interval_s"])
+        if len(seg) == rc["n_steps"] and not np.isnan(seg).any():
+            break
+    else:
+        raise SystemExit("no clean replay segment found for week %d from step %d" % (wk, start))
+    a.start = start + shift
     topo = yaml.safe_load(open(ROOT / "configs" / "topology_abilene12.yaml"))
     pairs = [(c // 12 + 1, c % 12 + 1) for c in cols]
     flows, info = build_schedule(seg, topo, rc, cfg_warm(), pairs)
@@ -103,7 +115,7 @@ def main():
     keys = ["t_start", "src", "dst", "kind", "proto", "rate_mbps", "dur_s", "id"]
     with open(out, "w", newline="") as f:
         wr = csv.DictWriter(f, fieldnames=keys); wr.writeheader(); wr.writerows(flows)
-    info.update(week=wk, start=a.start)
+    info.update(week=wk, start=a.start, seed=a.seed)
     out.with_suffix(".json").write_text(json.dumps(info, indent=2))
     print(json.dumps(info, indent=2))
 

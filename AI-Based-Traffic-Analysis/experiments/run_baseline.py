@@ -90,6 +90,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--duration", type=int, default=None, help="override traffic duration (s)")
     ap.add_argument("--check", action="store_true", help="only build net + pingall")
+    ap.add_argument("--schedule", default=None, help="CSV flow schedule (e.g. Abilene replay) instead of the synthetic generator")
     a = ap.parse_args()
     if os.geteuid() != 0:
         sys.exit("Run with sudo (Mininet needs root).")
@@ -114,7 +115,11 @@ def main():
         warm = tcfg["warmup_s"]
         total = warm + (a.duration or tcfg["duration_s"])
         run = make_run_dir(a.method, "%s_%s" % (a.load, a.profile), a.seed)
-        sched, pairs, w, info = build_schedule(topo, tcfg, a.load, a.profile, total, a.seed)
+        if a.schedule:
+            from abilene.replay import load_schedule
+            sched, pairs, w, info = load_schedule(a.schedule, topo)
+        else:
+            sched, pairs, w, info = build_schedule(topo, tcfg, a.load, a.profile, total, a.seed)
         print("run dir:", run, "| flows:", info["n_flows"], "| offered %.1f Mbps | avg hops %.2f"
               % (info["demand_mbps"], info["avg_hops"]))
         with open(run / "schedule.csv", "w", newline="") as fh:

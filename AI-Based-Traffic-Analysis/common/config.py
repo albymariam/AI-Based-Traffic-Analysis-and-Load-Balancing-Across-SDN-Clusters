@@ -14,9 +14,15 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "configs"
 
 
+def cfg_file(name: str) -> Path:
+    """configs/<name>.yaml; for 'topology' honour T11_TOPOLOGY (-> topology_<value>.yaml)."""  # T11_TOPOLOGY
+    v = os.environ.get("T11_TOPOLOGY", "")
+    return CONFIG_DIR / (f"topology_{v}.yaml" if name == "topology" and v else f"{name}.yaml")
+
+
 def load_yaml(name: str) -> dict:
     """load_yaml('topology') -> dict from configs/topology.yaml"""
-    with open(CONFIG_DIR / f"{name}.yaml", "r") as f:
+    with open(cfg_file(name), "r") as f:
         return yaml.safe_load(f)
 
 
@@ -62,7 +68,7 @@ def make_run_dir(method: str, scenario: str, seed: int) -> Path:
     run = path_from("runs", exp) / f"{ts}_{method}_{scenario}_s{seed}"
     run.mkdir(parents=True, exist_ok=True)
     for name in ("topology", "traffic", "experiment"):
-        shutil.copy(CONFIG_DIR / f"{name}.yaml", run / f"{name}.yaml")
+        shutil.copy(cfg_file(name), run / f"{name}.yaml")
     meta = {
         "method": method,
         "scenario": scenario,
