@@ -160,7 +160,6 @@ class FlowRunner(threading.Thread):
         self.net, self.schedule, self.api, self.path_fn = net, schedule, api, path_fn
         self.run_dir, self.t0 = run_dir, t0
         self.lock = threading.Lock()
-        self._reap_lock = threading.Lock()
         self.active, self.rows = {}, []
         self._halt = threading.Event()
 
@@ -209,11 +208,6 @@ class FlowRunner(threading.Thread):
             self.active[cli] = dict(row=row, f=f, t=time.time(), port=port, path=path, protos=protos, srv=srv)
 
     def _reap(self, force=False):
-        # Only one thread may process and remove active flows at a time.
-        with self._reap_lock:
-            self._reap_impl(force)
-
-    def _reap_impl(self, force=False):
         with self.lock:
             items = list(self.active.items())
         for proc, e in items:

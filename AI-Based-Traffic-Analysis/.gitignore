@@ -28,3 +28,13 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+experiments/onos_cluster_b/previous_config_*/
+experiments/onos_cluster_b/metadata_backup_*/
+experiments/onos_cluster_b/*.bak_*  
+# Abilene pipeline: large/generated files
+models/checkpoints/abilene/
+results/abilene/
+results/onos_runs*/
+.ryu_env/
+*Zone.Identifier

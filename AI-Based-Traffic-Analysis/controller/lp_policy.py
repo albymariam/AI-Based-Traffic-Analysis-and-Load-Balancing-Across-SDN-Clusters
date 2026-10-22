@@ -50,8 +50,11 @@ class LPReroute(threading.Thread):
     def run(self):
         nxt = time.time() + 5
         while not self._halt.is_set():
-            self._halt.wait(max(0.0, nxt - time.time()))
+            if self._halt.wait(max(0.0, nxt - time.time())):
+                break
             nxt += self.lp["interval_s"]
+            if self._halt.is_set():
+                break
             try:
                 self.tick()
             except Exception as ex:

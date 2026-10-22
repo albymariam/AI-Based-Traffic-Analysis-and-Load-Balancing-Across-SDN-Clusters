@@ -1,0 +1,30 @@
+# Abilene data audit (generated)
+
+- **weeks_present**: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+- **weeks_missing_from_1_to_max**: []
+- **rows_per_week**: {"1": 2016, "2": 2016, "3": 2016, "4": 2016, "5": 2016, "6": 2016, "7": 2016, "8": 2016, "9": 2016, "10": 2016, "11": 2016, "12": 2016, "13": 2016, "14": 2016, "15": 2016, "16": 2016, "17": 2016, "18": 2016, "19": 2016, "20": 2016, "21": 2016, "22": 2016, "23": 2016, "24": 2016}
+- **n_snapshots**: 48384
+- **columns_per_row**: 720
+- **n_nodes**: 12
+- **n_od_pairs**: 144
+- **n_od_pairs_used**: 132
+- **matrix_dims**: "12x12 per snapshot"
+- **layout_detected**: "pair_major"
+- **layout_rank1_scores**: {"pair_major": 5.722830378533973e-09, "estimate_major": 0.5555082407168097}
+- **sampling_interval_s**: 300
+- **timestamps**: "NOT stored in the files. Week index from filename only; calendar dates come from readme.txt (NOT verified here). Weeks are treated as separate segments; no contiguity assumed."
+- **missing_values_nan**: 0
+- **negative_values**: 0
+- **duplicate_consecutive_snapshots**: 0
+- **duplicate_timestamps**: "n/a (no timestamps in files)"
+- **zero_demand_fraction**: 0.05239742414221581
+- **units**: "file units x 100 bytes / 300s -> Mbps (unit definition from readme.txt, confirm)"
+- **demand_mbps**: {"median": 8.451274666666666, "mean": 21.50347927978612, "p95": 82.2215385333333, "p99": 153.864945093333, "max": 7085.250666666667}
+- **total_demand_mbps**: {"median": 2574.358984, "p99": 8622.311109119995, "peak": 11888.954216}
+- **diagonal_self_pairs_mbps**: {"median": 16.558880000000002, "max": 142113037.33333334}
+- **outliers_iqr3_count**: 191724
+- **outlier_treatment**: "flagged only, NOT removed or clipped"
+- **acf_total_demand**: {"1": 0.9722567843974708, "12": 0.9265119534256052, "288": 0.4992621710492358}
+- **week_over_week_corr_total**: {"mean": 0.3952206946105085, "n": 23}
+- **od_order_assumption**: "src-major alphabetical routers; UNVERIFIED (swap would transpose OD pairs, diagonal unaffected)"
+- **problems**: []
