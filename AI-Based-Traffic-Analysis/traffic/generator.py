@@ -111,7 +111,7 @@ def build_schedule(topo_cfg, tc, load, profile_name, total_s, seed):
 
 
 # ---------------------------------------------------------------- flow execution
-MOUSE_PORT = 6000
+MOUSE_PORT = 9000                 # iperf3 flows use 5201 + flow_id (up to ~7000): keep the mouse port clear of that range
 MOUSE_PY = str(Path(__file__).resolve().parent / "mouse.py")
 CONNECT_DELAY = 0.5
 
