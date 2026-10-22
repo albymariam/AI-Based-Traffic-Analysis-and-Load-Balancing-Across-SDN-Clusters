@@ -1,0 +1,112 @@
+services:
+
+  atomix-1:
+    image: atomix/atomix:3.1.9
+    environment:
+      ATOMIX_ROOT: /opt/atomix
+    container_name: atomix-b1
+    hostname: atomix-1
+    command:
+      - "--config"
+      - "/etc/atomix/conf/atomix.conf"
+      - "--data-dir"
+      - "/var/lib/atomix/data"
+    volumes:
+      - ./atomix/atomix-1.conf:/etc/atomix/conf/atomix.conf:ro
+      - atomix-b1-data:/var/lib/atomix/data
+    networks:
+      - onos-cluster-b
+
+  atomix-2:
+    image: atomix/atomix:3.1.9
+    environment:
+      ATOMIX_ROOT: /opt/atomix
+    container_name: atomix-b2
+    hostname: atomix-2
+    command:
+      - "--config"
+      - "/etc/atomix/conf/atomix.conf"
+      - "--data-dir"
+      - "/var/lib/atomix/data"
+    volumes:
+      - ./atomix/atomix-2.conf:/etc/atomix/conf/atomix.conf:ro
+      - atomix-b2-data:/var/lib/atomix/data
+    networks:
+      - onos-cluster-b
+
+  atomix-3:
+    image: atomix/atomix:3.1.9
+    environment:
+      ATOMIX_ROOT: /opt/atomix
+    container_name: atomix-b3
+    hostname: atomix-3
+    command:
+      - "--config"
+      - "/etc/atomix/conf/atomix.conf"
+      - "--data-dir"
+      - "/var/lib/atomix/data"
+    volumes:
+      - ./atomix/atomix-3.conf:/etc/atomix/conf/atomix.conf:ro
+      - atomix-b3-data:/var/lib/atomix/data
+    networks:
+      - onos-cluster-b
+
+  onos-b1:
+    image: onosproject/onos:2.7.0
+    container_name: onos-b1
+    hostname: onos-b1
+    ports:
+      - "8182:8181"
+      - "6654:6653"
+      - "8102:8101"
+    volumes:
+      - ./onos-b1.json:/root/onos/config/cluster.json:ro
+    depends_on:
+      - atomix-1
+      - atomix-2
+      - atomix-3
+    networks:
+      - onos-cluster-b
+
+  onos-b2:
+    image: onosproject/onos:2.7.0
+    container_name: onos-b2
+    hostname: onos-b2
+    ports:
+      - "8183:8181"
+      - "6655:6653"
+      - "8103:8101"
+    volumes:
+      - ./onos-b2.json:/root/onos/config/cluster.json:ro
+    depends_on:
+      - atomix-1
+      - atomix-2
+      - atomix-3
+    networks:
+      - onos-cluster-b
+
+  onos-b3:
+    image: onosproject/onos:2.7.0
+    container_name: onos-b3
+    hostname: onos-b3
+    ports:
+      - "8184:8181"
+      - "6656:6653"
+      - "8104:8101"
+    volumes:
+      - ./onos-b3.json:/root/onos/config/cluster.json:ro
+    depends_on:
+      - atomix-1
+      - atomix-2
+      - atomix-3
+    networks:
+      - onos-cluster-b
+
+networks:
+  onos-cluster-b:
+    driver: bridge
+
+volumes:
+  atomix-b1-data:
+  atomix-b2-data:
+  atomix-b3-data:

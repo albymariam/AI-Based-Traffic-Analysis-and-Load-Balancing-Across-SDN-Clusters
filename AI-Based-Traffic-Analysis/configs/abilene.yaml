@@ -1,0 +1,38 @@
+# Abilene / Internet2 traffic-matrix pipeline (milestones M1-M4).
+data:
+  base_url: https://www.cs.utexas.edu/~yzhang/research/AbileneTM/
+  raw_dir: data/raw/abilene
+  processed_dir: data/processed/abilene
+  layout: auto              # auto | pair_major | estimate_major  (auto = detected by verify_data.py)
+  bytes_per_unit: 100       # per readme.txt: "100 bytes per 5 min" -- confirm against the downloaded readme
+  interval_s: 300
+  drop_diagonal: true       # self-pairs never cross a link
+  zero_eps_mbps: 0.001      # MAPE ignores targets below this (documented zero handling)
+split:                      # chronological, by whole weekly files (no window spans two weeks)
+  train: 0.70
+  val: 0.15
+forecast:
+  window: 12                # 1 h of history
+  horizon: 6                # 30 min ahead, multi-step
+  seeds: [1, 2, 3, 4, 5]
+  seasonal_lag: 288         # 1 day; used only if lag-288 autocorrelation > seasonal_min_acf
+  seasonal_min_acf: 0.5
+  epochs: 60
+  batch_size: 128
+  lr: 0.001
+  patience: 8
+  lstm: {hidden_dim: 128, num_layers: 2, dropout: 0.1}
+  tcn:  {channels: 64, kernel: 3, levels: 3, dropout: 0.1}
+te:
+  k_paths: 4
+  eta: 0.02                 # rerouting hysteresis: switch only if predicted MLU gain > eta
+  agg: first                # forecast step used for the decision: first | max
+  target_peak_mlu: 0.8      # demand is scaled so the TRAIN-set peak MLU under shortest path = this
+  congestion_mlu: 0.8
+replay:
+  step_s: 5                 # one 5-min TM interval is replayed in 5 s (60x time compression)
+  n_steps: 60
+  top_pairs: 30             # iperf3 processes are expensive; coverage of dropped volume is reported
+  proto: udp
+  target_mlu: 0.75          # on the emulated topology under static shortest path
+  min_rate_mbps: 0.05

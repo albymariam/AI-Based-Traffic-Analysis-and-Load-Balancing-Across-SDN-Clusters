@@ -1,0 +1,41 @@
+# M3 ONOS controller evaluation; separate from M1/M2 configuration.
+experiment:
+  name: onos_m3
+  duration_s: 80
+  seeds: [105, 106, 107, 108, 109, 110, 111, 112, 113, 114]
+
+scenarios:
+  - name: light_steady
+    load: light
+    profile: steady
+  - name: light_bursty
+    load: light
+    profile: bursty
+  - name: moderate_steady
+    load: moderate
+    profile: steady
+  - name: moderate_bursty
+    load: moderate
+    profile: bursty
+  - name: near_saturation_steady
+    load: near_saturation
+    profile: steady
+  - name: near_saturation_bursty
+    load: near_saturation
+    profile: bursty
+
+controllers:
+  - id: A_single
+    mode: single
+  - id: B_cluster
+    mode: distributed
+  - id: C_delayed
+    mode: distributed_delayed
+
+policy:
+  checkpoint: models/checkpoints/transformer.pt
+  routing: minmax_lp
+  retrain: false
+
+results:
+  root: results/onos_runs_final_final

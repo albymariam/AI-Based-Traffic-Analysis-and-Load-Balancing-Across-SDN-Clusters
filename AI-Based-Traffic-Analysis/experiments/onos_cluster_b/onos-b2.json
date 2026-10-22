@@ -1,0 +1,25 @@
+{
+  "name": "sdn-cluster-b",
+  "node": {
+    "id": "onos-b2",
+    "host": "onos-b2",
+    "port": 9876
+  },
+  "storage": [
+    {
+      "id": "atomix-1",
+      "host": "atomix-1",
+      "port": 5679
+    },
+    {
+      "id": "atomix-2",
+      "host": "atomix-2",
+      "port": 5679
+    },
+    {
+      "id": "atomix-3",
+      "host": "atomix-3",
+      "port": 5679
+    }
+  ]
+}

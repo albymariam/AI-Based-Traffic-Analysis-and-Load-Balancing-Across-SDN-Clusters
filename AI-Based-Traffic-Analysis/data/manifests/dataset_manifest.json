@@ -1,0 +1,215 @@
+{
+  "dataset": "Abilene/Internet2 traffic matrices",
+  "source_page": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/",
+  "files": [
+    {
+      "file": "A",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/A",
+      "bytes": 22033,
+      "sha256": "228e49b6ce34457f283aca179174fae2443573a2a3672d0413383c58aed989d3",
+      "retrieved_utc": "2026-10-22T06:03:08+00:00"
+    },
+    {
+      "file": "X01.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X01.gz",
+      "bytes": 7320862,
+      "sha256": "d996a9115d2815eec158d5055452deb389f5546a96e0dfcbfae5c22a40372558",
+      "retrieved_utc": "2026-10-22T06:03:16+00:00"
+    },
+    {
+      "file": "X02.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X02.gz",
+      "bytes": 7269940,
+      "sha256": "e4646c3020e5904b3e4f3388899c15940b8156ade9fdaf9dd96b06a83f8066a5",
+      "retrieved_utc": "2026-10-22T06:03:28+00:00"
+    },
+    {
+      "file": "X03.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X03.gz",
+      "bytes": 7168222,
+      "sha256": "b90f058def353a78db4e5d65d329de867659add90b7ef4d918acb7ba88a8f040",
+      "retrieved_utc": "2026-10-22T06:03:40+00:00"
+    },
+    {
+      "file": "X04.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X04.gz",
+      "bytes": 7193511,
+      "sha256": "3aab7fe56b84f2469888a142c2af313c865d4c3d41c955cdc199ccea4c66cce0",
+      "retrieved_utc": "2026-10-22T06:03:48+00:00"
+    },
+    {
+      "file": "X05.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X05.gz",
+      "bytes": 7349588,
+      "sha256": "e1cf3f3a79345ffde4e03a77a9c8017fe72fbc9584cb86f8428023efe8203f24",
+      "retrieved_utc": "2026-10-22T06:03:54+00:00"
+    },
+    {
+      "file": "X06.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X06.gz",
+      "bytes": 7496632,
+      "sha256": "770a8b0cb3468e212128954fc56d1cad365f3675a9e34da1e15f4d1ace9b43ff",
+      "retrieved_utc": "2026-10-22T06:04:06+00:00"
+    },
+    {
+      "file": "X07.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X07.gz",
+      "bytes": 7493819,
+      "sha256": "4b8a88af6b358562f356472ff1ae76d1b482333d4cde91666da0237a5c5ae56d",
+      "retrieved_utc": "2026-10-22T06:04:20+00:00"
+    },
+    {
+      "file": "X08.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X08.gz",
+      "bytes": 7478898,
+      "sha256": "5474cc2944c42cb826c6a0aa53da4d382e38bd7d07a5d21342bafcc85d6003b4",
+      "retrieved_utc": "2026-10-22T06:04:30+00:00"
+    },
+    {
+      "file": "X09.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X09.gz",
+      "bytes": 7331758,
+      "sha256": "005511d8b64c1fef598472026d23f7b454db19e5595955b3fbd9e0fe55a4dbbe",
+      "retrieved_utc": "2026-10-22T06:04:38+00:00"
+    },
+    {
+      "file": "X10.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X10.gz",
+      "bytes": 7333278,
+      "sha256": "c3517f34552a42e809f233a6352f9f04b9128ea98fdc319ede3672774967ecda",
+      "retrieved_utc": "2026-10-22T06:04:44+00:00"
+    },
+    {
+      "file": "X11.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X11.gz",
+      "bytes": 7327763,
+      "sha256": "cb382563cd2df8c05ce90ca18abf425862eb4260c614a64d32ff232dccd446f1",
+      "retrieved_utc": "2026-10-22T06:05:02+00:00"
+    },
+    {
+      "file": "X12.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X12.gz",
+      "bytes": 7492608,
+      "sha256": "13d45cc20fef1578c81c888939d719ca6b5cca1029e3f54d00781f561299442f",
+      "retrieved_utc": "2026-10-22T06:05:22+00:00"
+    },
+    {
+      "file": "X13.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X13.gz",
+      "bytes": 7483670,
+      "sha256": "b4f3c1d1861db52967c64a0a800c80775088e68bb66215a4a7c53578e574e9c7",
+      "retrieved_utc": "2026-10-22T06:05:32+00:00"
+    },
+    {
+      "file": "X14.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X14.gz",
+      "bytes": 7474429,
+      "sha256": "44b76c63febe1fee35efe35d5534fad72369e591945d2786e9bfa9d7ba9cef81",
+      "retrieved_utc": "2026-10-22T06:05:42+00:00"
+    },
+    {
+      "file": "X15.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X15.gz",
+      "bytes": 7477119,
+      "sha256": "17e3b2a4f8efb4a12868e25603c820635c6f3159b8a7cbac0781aafaac2198cc",
+      "retrieved_utc": "2026-10-22T06:05:52+00:00"
+    },
+    {
+      "file": "X16.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X16.gz",
+      "bytes": 7473722,
+      "sha256": "dc46c339f2f334b6c67f6219d395761590088e356c02807e0d52082f8019070e",
+      "retrieved_utc": "2026-10-22T06:06:02+00:00"
+    },
+    {
+      "file": "X17.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X17.gz",
+      "bytes": 7468012,
+      "sha256": "f0fd95217ed12b613f3e3a7d2134ed5a240823c7ef71b39e0e676c7891557cb0",
+      "retrieved_utc": "2026-10-22T06:06:14+00:00"
+    },
+    {
+      "file": "X18.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X18.gz",
+      "bytes": 7471048,
+      "sha256": "15ed6b8a9ea78ef22be8137e203142daa7660bfae481d096931456c4805795c0",
+      "retrieved_utc": "2026-10-22T06:06:26+00:00"
+    },
+    {
+      "file": "X19.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X19.gz",
+      "bytes": 7466720,
+      "sha256": "2ca01978bd973c0853ca0d2d716a7fd80b89470f269522fb58dfec68e42cfa65",
+      "retrieved_utc": "2026-10-22T06:06:38+00:00"
+    },
+    {
+      "file": "X20.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X20.gz",
+      "bytes": 7461686,
+      "sha256": "c7ef802f8e9b364f40fd010a9fa76a0022ad10fcaea7273c2b1c528a4c29d1a9",
+      "retrieved_utc": "2026-10-22T06:06:46+00:00"
+    },
+    {
+      "file": "X21.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X21.gz",
+      "bytes": 7401515,
+      "sha256": "0ff08972ccba812f42a16a9cab1f7333dd0228a61193c2ae28e86abdc0b470dc",
+      "retrieved_utc": "2026-10-22T06:07:00+00:00"
+    },
+    {
+      "file": "X22.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X22.gz",
+      "bytes": 7461083,
+      "sha256": "484b56d04b27c605c5eb6eea89c3983677f526a647fb889d816f91c5dcf4dbb4",
+      "retrieved_utc": "2026-10-22T06:07:12+00:00"
+    },
+    {
+      "file": "X23.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X23.gz",
+      "bytes": 7475541,
+      "sha256": "9fb081bf5f6320ddc337ec516839a329245f1550af8b4c161bbe12f15d7f5051",
+      "retrieved_utc": "2026-10-22T06:07:24+00:00"
+    },
+    {
+      "file": "X24.gz",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/X24.gz",
+      "bytes": 7465254,
+      "sha256": "f963c23f5446194f3dd37725638bd1523762e504da8d9baa3c8201200b682b92",
+      "retrieved_utc": "2026-10-22T06:07:36+00:00"
+    },
+    {
+      "file": "demands",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/demands",
+      "bytes": 2529,
+      "sha256": "e34f3d9c627b4d4518edf7df7ad1cd281df5304dfe86139de012cdb337ed7a49",
+      "retrieved_utc": "2026-10-22T06:07:36+00:00"
+    },
+    {
+      "file": "links",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/links",
+      "bytes": 984,
+      "sha256": "8c1597689577e8272889f64bde50db13d74b399dcd05ad4b78614140aeae5be4",
+      "retrieved_utc": "2026-10-22T06:07:38+00:00"
+    },
+    {
+      "file": "readme.txt",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/readme.txt",
+      "bytes": 2671,
+      "sha256": "caa200883f4f29938c063ea01a188f01494ed1d1a43c854a375a3e11bfe473c9",
+      "retrieved_utc": "2026-10-22T11:29:01.376298+00:00"
+    },
+    {
+      "file": "topo-2003-04-10.txt",
+      "url": "https://www.cs.utexas.edu/~yzhang/research/AbileneTM/topo-2003-04-10.txt",
+      "bytes": 1541,
+      "sha256": "78e84204d787921b097096dd5a706271e237192ba39ca7132871244ec07b5d95",
+      "retrieved_utc": "2026-10-22T11:25:13.438701+00:00"
+    }
+  ],
+  "licence": "No licence or reuse terms stated in readme.txt or on the index page (checked). Treat as research-use only; do not redistribute raw files.",
+  "readme_reuse_lines": [],
+  "units": "100 bytes per 5 minutes (readme.txt)",
+  "od_order": "source-major, alphabetical, ATLA-M5 first; verified against the 'demands' file",
+  "known_limitations": "Traffic destined to AS11537 (Abilene) excluded; weeks are not contiguous (see readme dates); diagonal self-pairs contain a physically impossible spike",
+  "citation_note": "Cite the dataset page and the original tomogravity papers by Y. Zhang et al.; verify exact reference before use"
+}
