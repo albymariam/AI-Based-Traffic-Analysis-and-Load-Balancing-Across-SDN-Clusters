@@ -79,7 +79,7 @@ def build(kind, P, W, H, fc):
 
         def forward(s, x):
             o, _ = s.rnn(x)
-            return s.head(o[:, -1]).view(-1, H, P)
+            return x[:, -1:, :] + s.head(o[:, -1]).view(-1, H, P)      # residual on the last observation
 
     class Block(nn.Module):
         def __init__(s, cin, cout, k, d, p):
@@ -104,7 +104,7 @@ def build(kind, P, W, H, fc):
 
         def forward(s, x):
             y = s.net(x.transpose(1, 2))
-            return s.head(y[:, :, -1]).view(-1, H, P)
+            return x[:, -1:, :] + s.head(y[:, :, -1]).view(-1, H, P)   # residual on the last observation
 
     return (LSTM if kind == "lstm" else TCN)(fc[kind])
 
@@ -117,7 +117,7 @@ def train_model(kind, D, sc, fc, seed, out_dir):
     Xtr, Ytr, Xva, Yva = T(D["train"]["X"]), T(D["train"]["Y"]), T(D["val"]["X"]), T(D["val"]["Y"])
     P, W, H = Xtr.shape[2], Xtr.shape[1], Ytr.shape[1]
     m = build(kind, P, W, H, fc)
-    opt, lf = torch.optim.Adam(m.parameters(), lr=fc["lr"]), nn.MSELoss()
+    opt, lf = torch.optim.Adam(m.parameters(), lr=fc["lr"]), nn.HuberLoss(delta=1.0)
     best, state, bad, curve = 1e9, None, 0, []
     for ep in range(fc["epochs"]):
         m.train()

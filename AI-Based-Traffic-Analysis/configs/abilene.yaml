@@ -21,8 +21,8 @@ forecast:
   batch_size: 128
   lr: 0.001
   patience: 8
-  lstm: {hidden_dim: 128, num_layers: 2, dropout: 0.1}
-  tcn:  {channels: 64, kernel: 3, levels: 3, dropout: 0.1}
+  lstm: {hidden_dim: 128, num_layers: 2, dropout: 0.2}
+  tcn:  {channels: 64, kernel: 3, levels: 3, dropout: 0.2}
 te:
   k_paths: 4
   eta: 0.02                 # rerouting hysteresis: switch only if predicted MLU gain > eta
