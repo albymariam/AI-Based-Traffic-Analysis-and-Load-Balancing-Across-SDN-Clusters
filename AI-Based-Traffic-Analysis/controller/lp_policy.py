@@ -19,9 +19,11 @@ class LPReroute(threading.Thread):
     def __init__(self, api, tele, runner, G, topo_cfg, exp_cfg, run_dir, t0, arch="transformer"):
         super(LPReroute, self).__init__(daemon=True)
         torch.set_num_threads(1)
-        ck = torch.load(ROOT / "models" / "checkpoints" / ("%s.pt" % arch), map_location="cpu")
+        self.arch = arch                 # "persistence" = the same LP fed with the last observed utilisation (ablation)
+        net = "transformer" if arch == "persistence" else arch
+        ck = torch.load(ROOT / "models" / "checkpoints" / ("%s.pt" % net), map_location="cpu")
         self.W, self.norm = ck["window"], ck["norm"]
-        self.model = build_model(arch, len(FEATURES), ck["window"], ck["horizon"],
+        self.model = build_model(net, len(FEATURES), ck["window"], ck["horizon"],
                                  FEATURES.index("utilization"), ck["pc"])
         self.model.load_state_dict(ck["state"])
         self.model.eval()
@@ -83,6 +85,9 @@ class LPReroute(threading.Thread):
         return np.array([list(hist[l])[-self.W:] for l in self.links], dtype=np.float32)
 
     def _forecast(self, X):
+        if self.arch == "persistence":
+            u = FEATURES.index("utilization")
+            return {l: float(X[i, -1, u]) for i, l in enumerate(self.links)}
         with torch.no_grad():
             P = self.model(torch.from_numpy(normalize(X, self.norm))).numpy()
         agg = P.mean(1) if self.lp["aggregate"] == "mean" else P.max(1)

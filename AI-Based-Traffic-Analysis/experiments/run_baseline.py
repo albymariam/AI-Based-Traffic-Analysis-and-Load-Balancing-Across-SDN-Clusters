@@ -35,7 +35,7 @@ METHODS = {"static_shortest": ("static", None), "static_tracked": ("static", "sh
            "ecmp": ("ecmp", None), "round_robin": ("static", "rr"),
            "lstm_hysteresis": ("static", "shortest"),
            "transformer_minmax_lp": ("static", "shortest"),
-           "tcn_minmax_lp": ("static", "shortest")}
+           "tcn_minmax_lp": ("static", "shortest"), "persistence_minmax_lp": ("static", "shortest")}
 
 for _s in (0, 1, 2, 5, 10, 20):
     METHODS["dist_lp_s%d" % _s] = ("static", "shortest")
@@ -159,7 +159,7 @@ def main():
             from controller.lstm_policy import LSTMReroute
             ctl = LSTMReroute(mk_api(), tele, runner, G, topo, exp, run, t0)
             ctl.start()
-        elif a.method in ("transformer_minmax_lp", "tcn_minmax_lp"):
+        elif a.method in ("transformer_minmax_lp", "tcn_minmax_lp", "persistence_minmax_lp"):
             from controller.lp_policy import LPReroute
             ctl = LPReroute(mk_api(), tele, runner, G, topo, exp, run, t0,
                             arch=a.method.split("_")[0])

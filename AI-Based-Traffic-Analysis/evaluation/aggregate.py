@@ -15,9 +15,10 @@ TAB.mkdir(parents=True, exist_ok=True)
 FIG.mkdir(parents=True, exist_ok=True)
 METRICS = ["mean_mlu", "p95_mlu", "jfi", "rtt_ms_mean", "rtt_ms_p95", "rtt_jitter_ms", "fct_p95_s",
            "udp_loss_pct", "udp_jitter_ms_mean", "throughput_mbps_aggregate", "link_drops_total",
-           "flowmods_per_s", "reroutes_total", "reroute_decision_ms_mean", "flows_failed_pct", "lp_solve_ms_mean", "plans_applied"]
+           "flowmods_per_s", "reroutes_total", "reroute_decision_ms_mean", "flows_failed_pct", "lp_solve_ms_mean", "plans_applied",
+           "peak_mlu", "mean_util", "congested_link_pct", "carried_over_offered", "elephant_goodput_mbps_mean", "infer_ms_mean", "fct_mean_s"]
 ORDER = ["static_shortest", "static_tracked", "ecmp", "round_robin", "lstm_hysteresis",
-         "transformer_minmax_lp", "tcn_minmax_lp"]
+         "transformer_minmax_lp", "tcn_minmax_lp", "persistence_minmax_lp"]
 BASE = "static_shortest"
 
 
@@ -47,22 +48,53 @@ for (sc, me), g in df.groupby(["scenario", "method"]):
     out.append(row)
 pd.DataFrame(out).to_csv(TAB / "summary_mean_ci.csv", index=False)
 
-# ---- paired tests vs baseline (same seeds = same traffic)
+# ---- paired tests (same seed = same traffic): every method vs static_shortest, flow-mods vs static_tracked, and head-to-head
+TEST_M = ["mean_mlu", "p95_mlu", "peak_mlu", "jfi", "rtt_ms_mean", "rtt_ms_p95", "rtt_jitter_ms", "udp_loss_pct",
+          "udp_jitter_ms_mean", "elephant_goodput_mbps_mean", "flowmods_per_s", "fct_p95_s"]
+HEAD2HEAD = [("transformer_minmax_lp", "tcn_minmax_lp"), ("transformer_minmax_lp", "persistence_minmax_lp"),
+             ("tcn_minmax_lp", "persistence_minmax_lp"), ("transformer_minmax_lp", "lstm_hysteresis"),
+             ("persistence_minmax_lp", "lstm_hysteresis")]
+
+
+def holm(pv):
+    """Holm step-down adjusted p-values (family = the tests of one metric against one baseline)."""
+    order = np.argsort(pv)
+    adj, run = np.empty(len(pv)), 0.0
+    for rank, i in enumerate(order):
+        run = max(run, min(1.0, (len(pv) - rank) * pv[i]))
+        adj[i] = run
+    return adj
+
+
 tests = []
 for sc, g in df.groupby("scenario"):
-    for m in ["mean_mlu", "jfi", "rtt_ms_mean", "rtt_ms_p95"]:
-        if m not in g:
-            continue
+    for m in [x for x in TEST_M if x in g]:
         pv = g.pivot_table(index="seed", columns="method", values=m)
-        for me in pv.columns:
-            if me == BASE or BASE not in pv:
+        pairs = [(me, BASE) for me in pv.columns if me != BASE]
+        if "static_tracked" in pv:
+            pairs += [(me, "static_tracked") for me in pv.columns if me not in (BASE, "static_tracked")] if m == "flowmods_per_s" else []
+        pairs += [(x, y) for x, y in HEAD2HEAD if x in pv and y in pv]
+        for me, base in pairs:
+            if base not in pv:
                 continue
-            p = pv[[BASE, me]].dropna()
-            if len(p) >= 3:
-                diff = p[me] - p[BASE]
-                tests.append(dict(scenario=sc, metric=m, method=me, n=len(p),
-                                  mean_diff_vs_static=round(diff.mean(), 4),
-                                  p_value=round(stats.ttest_rel(p[me], p[BASE]).pvalue, 4)))
+            q = pv[[me, base]].dropna()
+            if len(q) < 3 or q[base].mean() == 0 and q[me].mean() == 0:
+                continue
+            diff = q[me] - q[base]
+            sd = diff.std(ddof=1)
+            t = stats.ttest_rel(q[me], q[base])
+            hw = stats.t.ppf(0.975, len(q) - 1) * sd / np.sqrt(len(q))
+            tests.append(dict(scenario=sc, metric=m, method=me, baseline=base, n=len(q),
+                              mean_diff=diff.mean(), ci95_lo=diff.mean() - hw, ci95_hi=diff.mean() + hw,
+                              pct_change=100 * diff.mean() / q[base].mean() if q[base].mean() else np.nan,
+                              cohens_dz=diff.mean() / sd if sd > 0 else np.nan, p_value=t.pvalue))
+T = pd.DataFrame(tests)
+if len(T):
+    T["p_holm"] = np.nan
+    for _, idx in T.groupby(["scenario", "metric", "baseline"]).groups.items():
+        T.loc[idx, "p_holm"] = holm(T.loc[idx, "p_value"].values)
+    T = T.round({"mean_diff": 4, "ci95_lo": 4, "ci95_hi": 4, "pct_change": 2, "cohens_dz": 2, "p_value": 4, "p_holm": 4})
+tests = T.to_dict("records")
 pd.DataFrame(tests).to_csv(TAB / "paired_tests.csv", index=False)
 
 # ---- figures
