@@ -56,6 +56,7 @@ class PathPolicy:
 
 
 def start_probes(net, pairs, policy, api, total_s, interval):
+    import tempfile
     procs = []
     for s, d in pairs:
         if policy:
@@ -63,8 +64,11 @@ def start_probes(net, pairs, policy, api, total_s, interval):
             api.pin(s, d, None, [1], p)
             api.pin(d, s, None, [1], p[::-1])           # pin the echo-reply direction too
         n = int(total_s / interval)
-        procs.append(((s, d), net.get("h%d" % s).popen(
-            ["ping", "-D", "-i", str(interval), "-c", str(n), pm.host_ip(d)])))
+        f = tempfile.TemporaryFile()                  # a pipe fills at 64 KB and stalls ping
+        pr = net.get("h%d" % s).popen(
+            ["ping", "-D", "-i", str(interval), "-c", str(n), pm.host_ip(d)], stdout=f)
+        pr.out = f
+        procs.append(((s, d), pr))
     return procs
 
 
@@ -73,11 +77,10 @@ def collect_probes(procs, run_dir, t0):
         wr = csv.writer(fh)
         wr.writerow(["t", "src", "dst", "rtt_ms"])
         for (s, d), p in procs:
-            try:
-                out, _ = p.communicate(timeout=30)
-            except Exception:
-                p.kill()
-                out, _ = p.communicate()
+            p.terminate()
+            p.wait()
+            p.out.seek(0)
+            out = p.out.read()
             for m in re.finditer(r"\[(\d+\.\d+)\].*?time=([\d.]+) ms", out.decode(errors="ignore")):
                 wr.writerow([round(float(m.group(1)) - t0, 3), s, d, m.group(2)])
 
