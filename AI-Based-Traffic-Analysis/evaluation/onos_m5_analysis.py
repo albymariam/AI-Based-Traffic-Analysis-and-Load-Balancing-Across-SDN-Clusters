@@ -41,9 +41,11 @@ for d in sorted((p for p in RES.glob("*") if p.is_dir()), key=lambda p: order(p.
         row["write_visible_ms_median"] = 1000 * st["vis|" + w]["median"]
         lags = [v["lag_p95"] for k, v in st.items() if k.startswith("vis|") and v["lag_p95"] is not None]
         row["peer_lag_p95_ms"] = 1000 * max(lags) if lags else None
-    b, a, i0, i1 = (rj(d / ("net_%s.json" % n)) for n in ("before", "after", "idle0", "idle1"))
+    b, a, i0, i1, i2 = (rj(d / ("net_%s.json" % n)) for n in ("before", "after", "idle0", "idle1", "idle2"))
     if b and a and i0 and i1:
         idle = (total(i1) - total(i0)) / max(1e-9, i1["_t"] - i0["_t"])
+        if i2:                                   # idle traffic drifts: use the mean of the windows before and after the replay
+            idle = 0.5 * (idle + (total(i2) - total(a)) / max(1e-9, i2["_t"] - a["_t"]))
         run_s = a["_t"] - b["_t"]
         extra = total(a) - total(b) - idle * run_s
         row["sync_idle_kBps"] = idle / 1e3

@@ -23,7 +23,7 @@ PRIO = 100
 APP = "org.onosproject.rest"
 AUTH = ("onos", "rocks")
 TL = threading.local()
-N_REQ = [0]
+N_REQ = [0, 0]      # [replay operations, ADDED-state polls]; polls are kept out of the REST load figure
 LOCK = threading.Lock()
 
 
@@ -39,9 +39,9 @@ class Onos:
         self.base = "http://%s/onos/v1" % node
         self.pmap = pm.port_map(pm.load_topology_cfg())
 
-    def call(self, method, path, **kw):
+    def call(self, method, path, poll=False, **kw):
         with LOCK:
-            N_REQ[0] += 1
+            N_REQ[1 if poll else 0] += 1
         return sess().request(method, self.base + path, timeout=30, **kw)
 
     def rule(self, s, src, dst, proto, dport, out):
@@ -76,7 +76,7 @@ class Onos:
             raise RuntimeError("DELETE %s %s -> %s" % (dev, fid, r.status_code))
 
     def added(self, dev, fid):
-        r = self.call("GET", "/flows/%s/%s" % (dev, fid))
+        r = self.call("GET", "/flows/%s/%s" % (dev, fid), poll=True)
         return r.status_code == 200 and all(f.get("state") == "ADDED" for f in r.json().get("flows", []))
 
 
@@ -98,7 +98,7 @@ class Replayer:
             while not all(self.o.added(d, f) for d, f, _ in got.values()):
                 if time.perf_counter() - t > 30:
                     break
-                time.sleep(0.01)
+                time.sleep(0.1)
             else:
                 added_ms = (time.perf_counter() - t) * 1000
         return len(want), rest_ms, added_ms
@@ -172,7 +172,7 @@ def q(x, p):
 
 def summarize(rows, dur_s):
     out = {"duration_s": round(dur_s, 1), "n_ops": len(rows), "ok_pct": round(100.0 * sum(r["ok"] for r in rows) / max(1, len(rows)), 2),
-           "rest_requests": N_REQ[0], "rest_requests_per_s": round(N_REQ[0] / dur_s, 2) if dur_s else None,
+           "rest_requests": N_REQ[0], "added_polls": N_REQ[1], "rest_requests_per_s": round(N_REQ[0] / dur_s, 2) if dur_s else None,
            "replay_lag_p95_s": q([r["lag_s"] for r in rows], 0.95)}
     for op in ("pin", "reroute", "unpin"):
         x = [r["rest_ms"] for r in rows if r["op"] == op and r["ok"]]
@@ -192,8 +192,8 @@ def probe(onos):
     ids = r.json().get("flows", [])
     for f in ids:
         t = time.perf_counter()
-        while not onos.added(f["deviceId"], f["flowId"]) and time.perf_counter() - t < 10:
-            time.sleep(0.01)
+        while not onos.added(f["deviceId"], f["flowId"]) and time.perf_counter() - t < 15:
+            time.sleep(0.1)
         print("GET state", onos.call("GET", "/flows/%s/%s" % (f["deviceId"], f["flowId"])).text[:300])
         print("ADDED after %.0f ms" % ((time.perf_counter() - t) * 1000))
         onos.delete(f["deviceId"], f["flowId"])
@@ -207,7 +207,7 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--speed", type=float, default=1.0, help="replay speed (1 = the original timing)")
     ap.add_argument("--workers", type=int, default=600)
-    ap.add_argument("--sample-added", type=int, default=10, help="time until state ADDED for every Nth pin")
+    ap.add_argument("--sample-added", type=int, default=40, help="time until state ADDED for every Nth pin (polled every 0.1 s)")
     ap.add_argument("--probe", action="store_true")
     a = ap.parse_args()
     onos = Onos(a.nodes.split(",")[0])

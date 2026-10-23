@@ -97,7 +97,7 @@ def summarize(run_dir):
                        lp_solve_ms_mean=_f(p.lp_ms.mean()), lp_solve_ms_p95=_f(p.lp_ms.quantile(0.95)),
                        predicted_mlu_gain_mean=_f((p.theta_cur - p.theta_plan).mean()))
     (run / "summary.json").write_text(json.dumps(out, indent=2))
-    return outd
+    return out
 
 
 if __name__ == "__main__":

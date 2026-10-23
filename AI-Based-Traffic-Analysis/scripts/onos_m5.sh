@@ -66,14 +66,18 @@ run_cond() {   # $1 = A | B | C<ms>
   if [ "$base" = B ]; then
     $PY scripts/onos_b_check.py --nodes $NODES --expect-devices 12 --flow-test --repeat 30 --json $out/propagation.json 2>&1 | tail -12
     python3 scripts/docker_net_bytes.py $ATOMIX_B > $out/net_idle0.json
-    sleep 30
+    sleep 45
     python3 scripts/docker_net_bytes.py $ATOMIX_B > $out/net_idle1.json
     python3 scripts/docker_net_bytes.py $ATOMIX_B > $out/net_before.json
   else
     $PY scripts/onos_b_check.py --nodes $NODES --expect-members 1 --expect-devices 12 --flow-test --repeat 30 --json $out/propagation.json 2>&1 | tail -6
   fi
   $PY experiments/onos_m5_replay.py --nodes $NODES --events $EVENTS --out $out 2>&1 | tee $out/replay.log
-  [ "$base" = B ] && python3 scripts/docker_net_bytes.py $ATOMIX_B > $out/net_after.json
+  if [ "$base" = B ]; then   # a second idle window after the replay: the idle traffic drifts, so use the mean of both
+    python3 scripts/docker_net_bytes.py $ATOMIX_B > $out/net_after.json
+    sleep 45
+    python3 scripts/docker_net_bytes.py $ATOMIX_B > $out/net_idle2.json
+  fi
   stop_net
   echo "condition $cond done -> $out"
 }
