@@ -9,6 +9,7 @@ import time
 from collections import deque
 
 import numpy as np
+import torch
 
 from controller.lp_policy import LPReroute
 
@@ -30,6 +31,7 @@ class DistLPReroute(LPReroute):
         self.ring = deque(maxlen=256)
 
     def run(self):
+        torch.set_num_threads(1)     # the thread count is per thread: set it in the thread that runs inference
         period = self.lp["interval_s"] / self.C           # staggered: one controller acts every period
         nxt, i = time.time() + 5.0, 0
         while not self._halt.is_set():

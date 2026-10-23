@@ -48,6 +48,7 @@ class LPReroute(threading.Thread):
         return self.cache[(s, d)]
 
     def run(self):
+        torch.set_num_threads(1)     # the thread count is per thread: set it in the thread that runs inference
         nxt = time.time() + 5
         while not self._halt.is_set():
             if self._halt.wait(max(0.0, nxt - time.time())):
