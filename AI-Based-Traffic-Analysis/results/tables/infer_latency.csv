@@ -1,0 +1,4 @@
+model,params,infer_ms_42links
+transformer,17861,1.98
+tcn,16517,2.02
+lstm,53957,2.5
