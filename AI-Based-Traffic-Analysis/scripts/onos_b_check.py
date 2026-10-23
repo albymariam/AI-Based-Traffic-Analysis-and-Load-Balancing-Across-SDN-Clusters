@@ -1,5 +1,5 @@
 """Verify the 3-node ONOS cluster (condition B) before any experiment.
-  PYTHONPATH=. ~/venvs/ml/bin/python scripts/onos_b_check.py --nodes localhost:8181,localhost:8182,localhost:8183
+  PYTHONPATH=. ~/venvs/ml/bin/python scripts/onos_b_check.py --nodes localhost:8182,localhost:8183,localhost:8184 --expect-devices 4 --flow-test
 Checks: membership agreement, required apps, device agreement, and (with --flow-test) cross-node flow-rule visibility
 (the measured state-propagation delay between nodes that condition C will later perturb)."""
 import argparse
@@ -98,10 +98,10 @@ def main():
         vals = list(dev_sets.values())
         if any(v != vals[0] for v in vals):
             fail("nodes disagree on the device set")
-        if len(vals[0]) < max(1, a.expect_devices):
+        if len(vals[0]) < a.expect_devices:
             fail("fewer devices than expected (%d): attach Mininet to all controllers first" % a.expect_devices)
 
-    if a.flow_test and dev_sets:
+    if a.flow_test and dev_sets and any(dev_sets.values()):
         print("== 4. cross-node flow-rule visibility (state propagation) ==")
         dev = sorted(next(iter(dev_sets.values())))[0]
         writer, readers = nodes[0], nodes[1:]

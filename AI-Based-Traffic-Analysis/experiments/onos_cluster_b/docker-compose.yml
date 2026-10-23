@@ -55,6 +55,8 @@ services:
     image: onosproject/onos:2.7.0
     container_name: onos-b1
     hostname: onos-b1
+    environment:
+      ONOS_APPS: drivers,openflow     # openflow is not active by default; onos_b_check requires it
     ports:
       - "8182:8181"
       - "6654:6653"
@@ -72,6 +74,8 @@ services:
     image: onosproject/onos:2.7.0
     container_name: onos-b2
     hostname: onos-b2
+    environment:
+      ONOS_APPS: drivers,openflow     # openflow is not active by default; onos_b_check requires it
     ports:
       - "8183:8181"
       - "6655:6653"
@@ -89,6 +93,8 @@ services:
     image: onosproject/onos:2.7.0
     container_name: onos-b3
     hostname: onos-b3
+    environment:
+      ONOS_APPS: drivers,openflow     # openflow is not active by default; onos_b_check requires it
     ports:
       - "8184:8181"
       - "6656:6653"
