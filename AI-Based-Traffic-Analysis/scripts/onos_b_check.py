@@ -3,6 +3,7 @@
 Checks: membership agreement, required apps, device agreement, and (with --flow-test) cross-node flow-rule visibility
 (the measured state-propagation delay between nodes that condition C will later perturb)."""
 import argparse
+import json
 import statistics
 import sys
 import time
@@ -65,6 +66,7 @@ def main():
     ap.add_argument("--expect-devices", type=int, default=0)
     ap.add_argument("--require", default="org.onosproject.openflow")
     ap.add_argument("--flow-test", action="store_true")
+    ap.add_argument("--json", default=None, help="write the propagation statistics to this file")
     ap.add_argument("--repeat", type=int, default=1, help="repeat the flow test N times and report median / p95")
     a = ap.parse_args()
     nodes, auth, ok = a.nodes.split(","), (a.user, a.password), True
@@ -164,6 +166,7 @@ def main():
                 else:
                     acc["rem"][n].append(gone[n][0] - t_del)
             time.sleep(0.2)
+        stats_out = {}
         for k, label in (("vis", "visible after POST"), ("rem", "gone after DELETE")):
             wr = acc[k][writer]
             for n in nodes:
@@ -171,11 +174,17 @@ def main():
                 if not v:
                     continue
                 lag = [x - w for x, w in zip(v, wr)] if n != writer else None
+                stats_out["%s|%s" % (k, n)] = dict(n=len(v), median=statistics.median(v), p95=q(v, 0.95), max=max(v),
+                                                   lag_median=None if lag is None else statistics.median(lag),
+                                                   lag_p95=None if lag is None else q(lag, 0.95))
                 print("  %-18s %-18s median %.3f s  p95 %.3f s  max %.3f s%s" % (
                     n + (" (writer)" if n == writer else ""), label, statistics.median(v), q(v, 0.95), max(v),
                     "" if lag is None else "   | lag vs writer: median %.3f s  p95 %.3f s" % (statistics.median(lag), q(lag, 0.95))))
 
-    print("\nRESULT:", "B READY" if ok else "B NOT READY (see FAIL lines)")
+    if a.json and a.flow_test:
+        with open(a.json, "w") as fh:
+            json.dump(dict(ok=ok, writer=nodes[0], stats=locals().get("stats_out", {})), fh, indent=1)
+    print("\nRESULT:", "READY" if ok else "NOT READY (see FAIL lines)")
     sys.exit(0 if ok else 1)
 
 

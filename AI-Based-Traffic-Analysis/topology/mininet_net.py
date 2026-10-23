@@ -6,12 +6,14 @@ from mininet.node import OVSKernelSwitch, RemoteController
 from topology import portmap as pm
 
 
-def build_network(cfg, controller_ip="127.0.0.1", of_port=6653):
+def build_network(cfg, controller_ip="127.0.0.1", of_port=6653, controllers=None):
+    """controllers: optional [(ip, port), ...] for a multi-controller (ONOS cluster) setup; default = one controller."""
     assert cfg["hosts_per_switch"] == 1, "portmap assumes one host per switch"
     pmap = pm.port_map(cfg)
     net = Mininet(controller=None, switch=OVSKernelSwitch, link=TCLink,
                   autoSetMacs=False, autoStaticArp=False, build=False)
-    net.addController("c0", controller=RemoteController, ip=controller_ip, port=of_port)
+    for i, (ip, port) in enumerate(controllers or [(controller_ip, of_port)]):
+        net.addController("c%d" % i, controller=RemoteController, ip=ip, port=port)
 
     sw, hosts = {}, {}
     for s in cfg["switches"]:

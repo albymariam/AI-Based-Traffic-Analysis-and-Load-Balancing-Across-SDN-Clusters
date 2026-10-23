@@ -1,0 +1,11 @@
+# Condition A: one ONOS node, no cluster and no Atomix. REST on 8185, OpenFlow on 6657.
+services:
+  onos-a:
+    image: onosproject/onos:2.7.0
+    container_name: onos-a
+    hostname: onos-a
+    environment:
+      ONOS_APPS: drivers,openflow
+    ports:
+      - "8185:8181"
+      - "6657:6653"
