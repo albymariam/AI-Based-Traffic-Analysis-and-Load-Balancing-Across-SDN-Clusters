@@ -33,10 +33,10 @@ start_cond() {   # $1 = A | B   -> sets NODES, OFP, MEMBERS
     ( cd experiments/onos_cluster_b && docker compose up -d ) || return 1
   fi
   printf "waiting for ONOS to become READY "
-  for i in $(seq 1 90); do
-    $PY scripts/onos_b_check.py --nodes $NODES --expect-members $MEMBERS >/dev/null 2>&1 && break
+  local end=$((SECONDS + 450))
+  until $PY scripts/onos_b_check.py --nodes $NODES --expect-members $MEMBERS >/dev/null 2>&1; do
     printf "."; sleep 5
-    [ "$i" = 90 ] && { echo " TIMEOUT (docker logs onos-b1 | tail -50)"; return 1; }
+    [ $SECONDS -ge $end ] && { echo " TIMEOUT (docker logs onos-b1 | tail -50)"; return 1; }
   done
   echo " ready; settling ${SETTLE}s"; sleep $SETTLE
 }
@@ -84,13 +84,21 @@ run_cond() {   # $1 = A | B | C<ms>
   echo "condition $cond done -> $out"
 }
 
+keep_sudo() {   # unattended runs: without this the sudo password prompt reappears after 15 minutes and the run stalls
+  sudo -v || exit 1
+  ( while true; do sudo -n true; sleep 50; done ) & KEEP=$!
+  trap 'kill $KEEP 2>/dev/null' EXIT
+}
+
 case "$1" in
   probe)
+    keep_sudo
     stop_all
     start_cond B && start_mininet && $PY experiments/onos_m5_replay.py --nodes $NODES_B --probe
     $PY scripts/onos_b_check.py --nodes $NODES_B --expect-devices 12 --flow-test | tail -12
     stop_all ;;
   run)
+    keep_sudo
     shift; CONDS=${@:-A B C10 C25 C50 C100}
     [ -f "$EVENTS" ] || { echo "missing $EVENTS (git pull)"; exit 1; }
     for c in $CONDS; do run_cond $c || echo "!! $c failed, continuing"; done
