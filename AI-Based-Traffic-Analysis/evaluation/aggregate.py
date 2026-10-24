@@ -50,7 +50,7 @@ pd.DataFrame(out).to_csv(TAB / "summary_mean_ci.csv", index=False)
 
 # ---- paired tests (same seed = same traffic): every method vs static_shortest, flow-mods vs static_tracked, and head-to-head
 TEST_M = ["mean_mlu", "p95_mlu", "peak_mlu", "jfi", "rtt_ms_mean", "rtt_ms_p95", "rtt_jitter_ms", "udp_loss_pct",
-          "udp_jitter_ms_mean", "elephant_goodput_mbps_mean", "flowmods_per_s", "fct_p95_s"]
+          "udp_jitter_ms_mean", "elephant_goodput_mbps_mean", "flowmods_per_s", "fct_mean_s", "fct_p95_s"]
 HEAD2HEAD = [("transformer_minmax_lp", "tcn_minmax_lp"), ("transformer_minmax_lp", "persistence_minmax_lp"),
              ("tcn_minmax_lp", "persistence_minmax_lp"), ("transformer_minmax_lp", "lstm_hysteresis"),
              ("persistence_minmax_lp", "lstm_hysteresis")]

@@ -53,6 +53,22 @@ def build_schedule(demand_mbps, topo_cfg, rc, warmup_s, pairs):
     return flows, info
 
 
+def add_mice(flows, per_s, t_end, seed, size_kb):
+    """Short TCP flows (kind 'mice') on the OD pairs of the elephants, Poisson arrivals, never pinned: they follow the default
+    routes, so their completion time (FCT) shows what the TE policy does to short flows. Elephants keep their ids."""
+    rng = np.random.default_rng(1000 + seed)
+    ods = [(f["src"], f["dst"]) for f in flows]
+    n = rng.poisson(per_s * (t_end - 2.0))
+    nid = max(f["id"] for f in flows) + 1
+    for t in np.sort(rng.uniform(2.0, t_end, n)):
+        s_, d_ = ods[rng.integers(len(ods))]
+        flows.append(dict(t_start=round(float(t), 3), src=s_, dst=d_, kind="mice", proto="tcp",
+                          size_bytes=int(rng.uniform(*size_kb) * 1000), id=nid))
+        nid += 1
+    flows.sort(key=lambda f: (f["t_start"], f["id"]))
+    return n
+
+
 def load_schedule(path, topo_cfg):
     """-> flows, pairs, weights, info  (what experiments/run_baseline.py expects from build_schedule)."""
     flows = []
@@ -89,6 +105,7 @@ def main():
     ap.add_argument("--week", type=int, help="test week to replay (default: first test week)")
     ap.add_argument("--start", type=int, default=0, help="first 5-min step inside the week")
     ap.add_argument("--out", default="results/abilene/replay_schedule.csv")
+    ap.add_argument("--mice-per-s", type=float, default=0.0, help="add short TCP flows (for FCT); 0 = elephants only (the M4 matrix)")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(ROOT / "configs" / "abilene.yaml"))
     from abilene.forecasting import prepare
@@ -110,9 +127,14 @@ def main():
     topo = yaml.safe_load(open(ROOT / "configs" / "topology_abilene12.yaml"))
     pairs = [(c // 12 + 1, c % 12 + 1) for c in cols]
     flows, info = build_schedule(seg, topo, rc, cfg_warm(), pairs)
+    if a.mice_per_s > 0:
+        tcfg = yaml.safe_load(open(ROOT / "configs" / "traffic.yaml"))
+        info["n_mice"] = add_mice(flows, a.mice_per_s, cfg_warm() + rc["n_steps"] * rc["step_s"] - 5.0, a.seed or 0,
+                                  tcfg["flow_mix"]["mice"]["size_kb"])
+        info["n_flows"] = len(flows)
     out = ROOT / a.out
     out.parent.mkdir(parents=True, exist_ok=True)
-    keys = ["t_start", "src", "dst", "kind", "proto", "rate_mbps", "dur_s", "id"]
+    keys = ["t_start", "src", "dst", "kind", "proto", "rate_mbps", "dur_s", "size_bytes", "id"]
     with open(out, "w", newline="") as f:
         wr = csv.DictWriter(f, fieldnames=keys); wr.writeheader(); wr.writerows(flows)
     info.update(week=wk, start=a.start, seed=a.seed)
