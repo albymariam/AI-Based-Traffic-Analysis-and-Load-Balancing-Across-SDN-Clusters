@@ -1,0 +1,29 @@
+{
+ "duration_s": 321.3,
+ "n_ops": 3907,
+ "ok_pct": 100.0,
+ "rest_requests": 16415,
+ "added_polls": 1922,
+ "rest_requests_per_s": 51.09,
+ "replay_lag_p95_s": 0.061,
+ "pin": {
+  "n": 1800,
+  "rest_ms_median": 39.33,
+  "rest_ms_p95": 64.98
+ },
+ "reroute": {
+  "n": 307,
+  "rest_ms_median": 256.95,
+  "rest_ms_p95": 461.32
+ },
+ "unpin": {
+  "n": 1800,
+  "rest_ms_median": 362.8,
+  "rest_ms_p95": 642.84
+ },
+ "pin_added_ms": {
+  "n": 45,
+  "median": 6052.28,
+  "p95": 6423.22
+ }
+}
