@@ -1,5 +1,5 @@
 """Staleness study: tables + figure + paired tests vs the centralised controller.
-   PYTHONPATH=. ~/venvs/ml/bin/python evaluation/staleness_analysis.py"""
+   T11_TOPOLOGY=abilene12 PYTHONPATH=. .venv/bin/python evaluation/staleness_analysis.py"""
 import json
 import re
 from pathlib import Path
@@ -16,12 +16,13 @@ from common.config import ROOT, load_yaml
 RUNS, TAB, FIG = ROOT / "results/runs", ROOT / "results/tables", ROOT / "results/figures"
 TAB.mkdir(parents=True, exist_ok=True)
 FIG.mkdir(parents=True, exist_ok=True)
-SCEN, CENTRAL, STATIC = "near_saturation_steady", "transformer_minmax_lp", "static_shortest"
+SCEN, CENTRAL, STATIC = "abilene_replay", "transformer_minmax_lp", "static_shortest"
 METRICS = ["mean_mlu", "p95_mlu", "jfi", "rtt_ms_mean", "fct_p95_s", "reroutes_total", "reversal_rate",
            "link_drops_total"]
 LINK_REC, FLOW_REC = 64, 48          # assumed bytes per synchronised link / flow record (MODELLED, not measured)
 WARM = load_yaml("traffic")["warmup_s"]
 C = len(load_yaml("topology")["domains"])
+N_LINKS = 2 * len(load_yaml("topology")["links"])      # directed links (30 for Abilene)
 
 
 def ci95(x):
@@ -51,7 +52,7 @@ def sync_kBps(d, delta):
     if delta <= 0 or not f.exists():
         return np.nan
     n_el = pd.read_csv(f).query("t >= @WARM").n_elephants.mean()
-    return (C - 1) * (42 * LINK_REC + C * n_el * FLOW_REC) / delta / 1000.0
+    return (C - 1) * (N_LINKS * LINK_REC + C * n_el * FLOW_REC) / delta / 1000.0
 
 
 rows = []

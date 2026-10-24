@@ -37,6 +37,7 @@ for d in sorted(RUNS.glob("*/")):
             rows.append(r)
 df = pd.DataFrame(rows)
 df = df.sort_values("dir").drop_duplicates(["scenario", "method", "seed"], keep="last")  # latest run wins
+df = df[df.method.isin(ORDER)]                    # staleness (dist_lp_s*) runs are analysed by staleness_analysis.py, not here
 mets = [m for m in METRICS if m in df]
 
 # ---- table: mean ± CI
