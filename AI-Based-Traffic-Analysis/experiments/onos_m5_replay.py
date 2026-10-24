@@ -85,7 +85,7 @@ class Replayer:
         self.o, self.rules, self.rows, self.sample = onos, {}, [], protos_sample
         self.n_pin = 0
 
-    def pin(self, e, sample):
+    def pin(self, e):
         path, protos = e["path"], e["protos"]
         want = [(s, p, self.o.out_port(path, i), self.o.rule(s, e["src"], e["dst"], p, e["dport"], self.o.out_port(path, i)))
                 for i, s in enumerate(path) for p in protos]
@@ -93,15 +93,15 @@ class Replayer:
         got = self.o.add(want)
         rest_ms = (time.perf_counter() - t) * 1000
         self.rules[e["flow_id"]] = got
-        added_ms = None
-        if sample:
-            while not all(self.o.added(d, f) for d, f, _ in got.values()):
-                if time.perf_counter() - t > 30:
-                    break
-                time.sleep(0.1)
-            else:
-                added_ms = (time.perf_counter() - t) * 1000
-        return len(want), rest_ms, added_ms
+        return len(want), rest_ms, (t, got)
+
+    def watch_added(self, row, t, got):
+        """own thread: time until every rule of one pin reports state ADDED (does not delay the replay)"""
+        while not all(self.o.added(d, f) for d, f, _ in got.values()):
+            if time.perf_counter() - t > 30:
+                return
+            time.sleep(0.1)
+        row["added_ms"] = round((time.perf_counter() - t) * 1000, 2)
 
     def unpin(self, e):
         got = self.rules.pop(e["flow_id"], {})
@@ -130,39 +130,54 @@ class Replayer:
         self.rules[e["flow_id"]] = keep
         return n, (time.perf_counter() - t) * 1000, None
 
-    def run_flow(self, evts, t0, speed):
-        for e in evts:
-            due = t0 + e["t"] / speed
-            time.sleep(max(0.0, due - time.time()))
+    def do_event(self, e, due, speed):
+        """runs in the pool; the per-flow lock keeps the pin / reroute / unpin of one flow in order"""
+        with self.flock[e["flow_id"]]:
+            t_exec = time.time()
             row = dict(op=e["op"], flow_id=e["flow_id"], t_plan=round(e["t"] / speed, 3),
-                       lag_s=round(time.time() - due, 3), n_rules=0, rest_ms=None, added_ms=None, ok=1, err="")
+                       lag_s=round(t_exec - due, 3), n_rules=0, rest_ms=None, added_ms=None, ok=1, err="")
+            watch = None
             try:
                 if e["op"] == "pin":
-                    with LOCK:
-                        self.n_pin += 1
-                        sample = self.n_pin % self.sample == 0
-                    n, rest, added = self.pin(e, sample)
+                    n, rest, watch = self.pin(e)
                 elif e["op"] == "unpin":
-                    n, rest, added = self.unpin(e)
+                    n, rest, _ = self.unpin(e)
                 else:
-                    n, rest, added = self.reroute(e)
-                row.update(n_rules=n, rest_ms=round(rest, 2), added_ms=None if added is None else round(added, 2))
+                    n, rest, _ = self.reroute(e)
+                row.update(n_rules=n, rest_ms=round(rest, 2))
             except Exception as ex:
                 row.update(ok=0, err=str(ex)[:120])
             with LOCK:
                 self.rows.append(row)
+                if watch is not None:
+                    self.n_pin += 1
+                    if self.n_pin % self.sample == 0:
+                        th = threading.Thread(target=self.watch_added, args=(row,) + watch, daemon=True)
+                        th.start()
+                        self.watchers.append(th)
+
+    def run(self, events, t0, speed, workers):
+        """one scheduler thread releases each event at its planned time; the pool executes it"""
+        self.flock = {e["flow_id"]: threading.Lock() for e in events}
+        self.watchers = []
+        with ThreadPoolExecutor(workers) as ex:
+            for e in events:
+                due = t0 + e["t"] / speed
+                time.sleep(max(0.0, due - time.time()))
+                ex.submit(self.do_event, e, due, speed)
+        for th in self.watchers:
+            th.join(timeout=35)
 
 
 def load_events(path):
-    by_flow = {}
+    ev = []
     with open(path) as fh:
         for r in csv.DictReader(fh):
-            by_flow.setdefault(r["flow_id"], []).append(dict(
-                t=float(r["t"]), op=r["op"], flow_id=r["flow_id"], src=int(r["src"]), dst=int(r["dst"]),
-                dport=int(r["dport"]), protos=[int(x) for x in r["protos"].split("-")],
-                path=[int(x) for x in r["path"].split("-")] if r["path"] else []))
-    flows = [sorted(v, key=lambda e: e["t"]) for v in by_flow.values()]
-    return sorted(flows, key=lambda v: v[0]["t"])
+            ev.append(dict(t=float(r["t"]), op=r["op"], flow_id=r["flow_id"], src=int(r["src"]), dst=int(r["dst"]),
+                           dport=int(r["dport"]), protos=[int(x) for x in r["protos"].split("-")],
+                           path=[int(x) for x in r["path"].split("-")] if r["path"] else []))
+    ev.sort(key=lambda e: e["t"])
+    return ev
 
 
 def q(x, p):
@@ -206,24 +221,21 @@ def main():
     ap.add_argument("--events", default="data/onos_m5/events_s1.csv")
     ap.add_argument("--out", default=None)
     ap.add_argument("--speed", type=float, default=1.0, help="replay speed (1 = the original timing)")
-    ap.add_argument("--workers", type=int, default=600)
+    ap.add_argument("--workers", type=int, default=128)
     ap.add_argument("--sample-added", type=int, default=40, help="time until state ADDED for every Nth pin (polled every 0.1 s)")
     ap.add_argument("--probe", action="store_true")
     a = ap.parse_args()
     onos = Onos(a.nodes.split(",")[0])
     if a.probe:
         return probe(onos)
-    flows = load_events(a.events)
-    t_first = min(f[0]["t"] for f in flows)
-    for f in flows:
-        for e in f:
-            e["t"] -= t_first
+    events = load_events(a.events)
+    t_first = events[0]["t"]
+    for e in events:
+        e["t"] -= t_first
     rp = Replayer(onos, a.sample_added)
-    print("replaying %d flows / %d events on %s (speed %gx) ..." % (len(flows), sum(map(len, flows)), a.nodes.split(",")[0], a.speed))
+    print("replaying %d events (%d flows) on %s (speed %gx) ..." % (len(events), len({e["flow_id"] for e in events}), a.nodes.split(",")[0], a.speed))
     t0 = time.time() + 1.0
-    with ThreadPoolExecutor(a.workers) as ex:
-        for f in flows:
-            ex.submit(rp.run_flow, f, t0, a.speed)
+    rp.run(events, t0, a.speed, a.workers)
     dur = time.time() - t0
     s = summarize(rp.rows, dur)
     print(json.dumps(s, indent=1))

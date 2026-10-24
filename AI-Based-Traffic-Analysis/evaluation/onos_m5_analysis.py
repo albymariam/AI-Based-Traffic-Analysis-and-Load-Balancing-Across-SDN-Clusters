@@ -29,7 +29,7 @@ for d in sorted((p for p in RES.glob("*") if p.is_dir()), key=lambda p: order(p.
     rs, pr = rj(d / "replay_summary.json"), rj(d / "propagation.json")
     if not rs:
         if (d / "FAILED.txt").exists():
-            rows.append(dict(condition=d.name, delay_ms=int(re.sub(r"\D", "", d.name) or 0), status=(d / "FAILED.txt").read_text().strip()))
+            rows.append(dict(condition=d.name, delay_ms=int(re.sub(r"\D", "", d.name) or 0), status=" | ".join(x.strip() for x in (d / "FAILED.txt").read_text().splitlines())))
         continue
     row = dict(condition=d.name, delay_ms=0 if d.name in ("A", "B") else int(re.sub(r"\D", "", d.name)),
                ok_pct=rs["ok_pct"], replay_lag_p95_s=rs["replay_lag_p95_s"], ops=rs["n_ops"], rest_per_s=rs["rest_requests_per_s"])

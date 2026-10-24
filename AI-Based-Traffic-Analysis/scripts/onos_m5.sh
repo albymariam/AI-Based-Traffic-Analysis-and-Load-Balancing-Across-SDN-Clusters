@@ -49,7 +49,8 @@ start_mininet() {
     printf "."; sleep 3
     [ "$i" = 60 ] && { echo " TIMEOUT"; tail -20 /tmp/onos_m5_net.log; return 1; }
   done
-  for i in $(seq 1 $((DEV_WAIT / 3))); do
+  local end=$((SECONDS + DEV_WAIT))      # a real time limit: each check can itself take a minute when the cluster is slow
+  while [ $SECONDS -lt $end ]; do
     $PY scripts/onos_b_check.py --nodes $NODES --expect-members $MEMBERS --expect-devices 12 >/dev/null 2>&1 && { echo " 12 devices on all nodes"; return 0; }
     sleep 3
   done
@@ -63,7 +64,7 @@ run_cond() {   # $1 = A | B | C<ms>
   stop_all; mkdir -p $out
   start_cond $base || { echo "condition $cond FAILED to start"; return 1; }
   if [ "$ms" != 0 ]; then tc_all "tc qdisc replace dev eth0 root netem delay ${ms}ms" && echo "added ${ms} ms per hop" || return 1; fi
-  start_mininet || { echo "devices did not appear on every node (waited ${DEV_WAIT}s)" > $out/FAILED.txt; return 1; }
+  start_mininet || { { echo "devices not available on every node after ${DEV_WAIT}s"; $PY scripts/onos_b_check.py --nodes $NODES --expect-members $MEMBERS --expect-devices 12 2>&1 | grep -E "available devices|FAIL"; } > $out/FAILED.txt; return 1; }
   if [ "$base" = B ]; then
     $PY scripts/onos_b_check.py --nodes $NODES --expect-devices 12 --flow-test --repeat 30 --json $out/propagation.json 2>&1 | tail -12
     python3 scripts/docker_net_bytes.py $ATOMIX_B > $out/net_idle0.json
