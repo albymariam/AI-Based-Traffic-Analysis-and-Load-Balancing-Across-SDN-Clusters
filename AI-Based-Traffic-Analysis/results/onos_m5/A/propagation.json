@@ -1,0 +1,22 @@
+{
+ "ok": true,
+ "writer": "localhost:8185",
+ "stats": {
+  "vis|localhost:8185": {
+   "n": 30,
+   "median": 0.02094642799988833,
+   "p95": 0.031753256000001784,
+   "max": 0.05110786900013409,
+   "lag_median": null,
+   "lag_p95": null
+  },
+  "rem|localhost:8185": {
+   "n": 30,
+   "median": 0.016482398500102136,
+   "p95": 0.021359660000143776,
+   "max": 0.02875497600007293,
+   "lag_median": null,
+   "lag_p95": null
+  }
+ }
+}
