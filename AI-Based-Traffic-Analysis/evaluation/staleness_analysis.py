@@ -1,6 +1,7 @@
 """Staleness study: tables + figure + paired tests vs the centralised controller.
-   T11_TOPOLOGY=abilene12 PYTHONPATH=. .venv/bin/python evaluation/staleness_analysis.py"""
+   [RUNS_DIR=<folder with run directories>] T11_TOPOLOGY=abilene12 PYTHONPATH=. .venv/bin/python evaluation/staleness_analysis.py"""
 import json
+import os
 import re
 from pathlib import Path
 
@@ -13,7 +14,8 @@ from scipy import stats
 
 from common.config import ROOT, load_yaml
 
-RUNS, TAB, FIG = ROOT / "results/runs", ROOT / "results/tables", ROOT / "results/figures"
+RUNS = Path(os.environ.get("RUNS_DIR", ROOT / "results/runs"))      # RUNS_DIR=... reads runs from another folder
+TAB, FIG = ROOT / "results/tables", ROOT / "results/figures"
 TAB.mkdir(parents=True, exist_ok=True)
 FIG.mkdir(parents=True, exist_ok=True)
 SCEN, CENTRAL, STATIC = "abilene_replay", "transformer_minmax_lp", "static_shortest"
