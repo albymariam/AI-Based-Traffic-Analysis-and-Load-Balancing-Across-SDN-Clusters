@@ -12,10 +12,11 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 
 TEST_IP = "203.0.113.77/32"      # TEST-NET-3: never matches real traffic
+TIMEOUT = 5                      # REST read timeout (s); --timeout raises it for slow (high-delay) clusters
 
 
-def get(node, path, auth, timeout=5):
-    r = requests.get("http://%s/onos/v1%s" % (node, path), auth=auth, timeout=timeout)
+def get(node, path, auth, timeout=None):
+    r = requests.get("http://%s/onos/v1%s" % (node, path), auth=auth, timeout=timeout or TIMEOUT)
     if r.status_code != 200:
         raise RuntimeError("GET %s%s -> %s %s" % (node, path, r.status_code, r.text[:200]))
     return r.json()
@@ -68,7 +69,10 @@ def main():
     ap.add_argument("--flow-test", action="store_true")
     ap.add_argument("--json", default=None, help="write the propagation statistics to this file")
     ap.add_argument("--repeat", type=int, default=1, help="repeat the flow test N times and report median / p95")
+    ap.add_argument("--timeout", type=float, default=5, help="REST read timeout in seconds")
     a = ap.parse_args()
+    global TIMEOUT
+    TIMEOUT = a.timeout
     nodes, auth, ok = a.nodes.split(","), (a.user, a.password), True
 
     def fail(msg):
