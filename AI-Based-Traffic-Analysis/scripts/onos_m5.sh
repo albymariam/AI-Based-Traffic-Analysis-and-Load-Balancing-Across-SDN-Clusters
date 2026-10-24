@@ -61,7 +61,7 @@ run_cond() {   # $1 = A | B | C<ms>
   local cond=$1 base=$1 ms=0 out=results/onos_m5/$1
   case $cond in C*) base=B; ms=${cond#C};; esac
   echo; echo "######## condition $cond  $(date +%T)"
-  stop_all; mkdir -p $out
+  stop_all; rm -rf $out; mkdir -p $out      # never keep the files of an earlier attempt
   start_cond $base || { echo "condition $cond FAILED to start"; return 1; }
   if [ "$ms" != 0 ]; then tc_all "tc qdisc replace dev eth0 root netem delay ${ms}ms" && echo "added ${ms} ms per hop" || return 1; fi
   start_mininet || { { echo "devices not available on every node after ${DEV_WAIT}s"; $PY scripts/onos_b_check.py --nodes $NODES --expect-members $MEMBERS --expect-devices 12 2>&1 | grep -E "available devices|FAIL"; } > $out/FAILED.txt; return 1; }
