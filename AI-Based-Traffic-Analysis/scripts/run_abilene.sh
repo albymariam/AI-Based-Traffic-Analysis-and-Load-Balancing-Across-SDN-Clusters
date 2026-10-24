@@ -8,5 +8,6 @@ M=$1; SEED=$2
 SCHED=results/abilene/schedules/seed_${SEED}.csv
 [ -f "$SCHED" ] || .venv/bin/python -m abilene.replay --seed "$SEED" --out "$SCHED" >/dev/null
 sudo mn -c >/dev/null 2>&1
+./scripts/ensure_ryu.sh                       # mn -c also kills ryu-manager: bring it back before the run
 sudo -E env T11_TOPOLOGY=abilene12 PYTHONPATH=.:/usr/lib/python3/dist-packages .venv/bin/python experiments/run_baseline.py \
      --method "$M" --load abilene --profile replay --seed "$SEED" --schedule "$SCHED"

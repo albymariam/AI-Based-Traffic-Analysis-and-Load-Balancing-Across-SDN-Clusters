@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/.."
 METHODS=${METHODS:-"static_shortest static_tracked ecmp round_robin lstm_hysteresis transformer_minmax_lp tcn_minmax_lp persistence_minmax_lp"}
 SEEDS=${SEEDS:-"1 2 3 4 5 6 7 8 9 10"}
-curl -s http://127.0.0.1:8080/te/stats | grep -q abilene12 || { echo "Ryu is not running with the Abilene topology. Start it: ./scripts/start_ryu.sh"; exit 1; }
+./scripts/ensure_ryu.sh || exit 1                              # starts Ryu with the Abilene topology if it is not running
 sudo -v || exit 1                                              # keep sudo alive for hours (the default cache lasts 15 min)
 ( while true; do sudo -n true; sleep 50; done ) & KEEP=$!
 trap 'kill $KEEP 2>/dev/null' EXIT
