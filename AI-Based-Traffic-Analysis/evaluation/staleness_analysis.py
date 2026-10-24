@@ -68,6 +68,7 @@ m = df.method.str.extract(r"^dist_lp_s(\d+)$")[0]
 df["delta"] = m.astype(float)
 df["reversal_rate"] = [reversal_rate(Path(d)) for d in df.dir]
 df["sync_kBps_modelled"] = [sync_kBps(Path(d), dl) for d, dl in zip(df.dir, df.delta)]
+METRICS = [m for m in METRICS if m in df and df[m].notna().any()]      # e.g. no FCT in the elephant-only replay
 dist = df[df.delta.notna()]
 deltas = sorted(dist.delta.unique())
 cent, stat = df[df.method == CENTRAL], df[df.method == STATIC]
@@ -83,17 +84,23 @@ for label, g in [("static", stat), ("centralised", cent)] + [("dist_s%d" % dl, d
     out.append(row)
 pd.DataFrame(out).to_csv(TAB / "staleness_summary.csv", index=False)
 
-# ---- paired tests vs centralised (same seeds = same traffic)
+# ---- paired tests (same seeds = same traffic): vs static, vs centralised, vs the fresh-state distributed control (delta 0)
 tests = []
+refs = [("static", stat), ("centralised", cent), ("dist_s0", dist[dist.delta == 0])]
 for dl in deltas:
-    for mt in ["mean_mlu", "p95_mlu", "jfi", "rtt_ms_mean", "fct_p95_s"]:
-        a = dist[dist.delta == dl].set_index("seed")[mt]
-        b = cent.set_index("seed")[mt]
-        j = pd.concat([a, b], axis=1, keys=["dist", "central"]).dropna()
-        if len(j) >= 3:
-            tests.append(dict(delta_s=dl, metric=mt, n=len(j), mean_diff=round((j.dist - j.central).mean(), 4),
-                              p_value=round(stats.ttest_rel(j.dist, j.central).pvalue, 4)))
-pd.DataFrame(tests).to_csv(TAB / "staleness_paired_vs_central.csv", index=False)
+    for ref, rdf in refs:
+        if ref == "dist_s0" and dl == 0:
+            continue
+        for mt in [m for m in ["mean_mlu", "p95_mlu", "peak_mlu", "jfi", "rtt_ms_mean"] if m in df]:
+            a = dist[dist.delta == dl].set_index("seed")[mt]
+            b = rdf.set_index("seed")[mt]
+            j = pd.concat([a, b], axis=1, keys=["dist", "ref"]).dropna()
+            if len(j) >= 3:
+                dd = j.dist - j.ref
+                tests.append(dict(delta_s=dl, vs=ref, metric=mt, n=len(j), mean_diff=round(dd.mean(), 4),
+                                  ci95=round(ci95(dd), 4), pct=round(100 * dd.mean() / j.ref.mean(), 2),
+                                  p_value=round(stats.ttest_rel(j.dist, j.ref).pvalue, 4)))
+pd.DataFrame(tests).to_csv(TAB / "staleness_paired.csv", index=False)
 
 # ---- figure
 fig, axs = plt.subplots(2, 4, figsize=(17, 7))
@@ -110,8 +117,10 @@ for ax, mt in zip(axs.ravel(), METRICS):
     ax.set(xlabel="state staleness Δ (s)", title=mt)
     ax.grid(alpha=.3)
 axs[0, 0].legend(fontsize=7)
+for ax in axs.ravel()[len(METRICS):]:
+    ax.axis("off")
 fig.suptitle("Effect of controller-state staleness (%s, mean ± 95%% CI, n=%d seeds)" % (SCEN, dist.seed.nunique()))
 fig.tight_layout()
 fig.savefig(FIG / "staleness_sweep.png", dpi=200)
 print(pd.DataFrame(out).to_string(index=False))
-print("\nwrote staleness_summary.csv, staleness_paired_vs_central.csv, staleness_sweep.png")
+print("\nwrote staleness_summary.csv, staleness_paired.csv, staleness_sweep.png")
