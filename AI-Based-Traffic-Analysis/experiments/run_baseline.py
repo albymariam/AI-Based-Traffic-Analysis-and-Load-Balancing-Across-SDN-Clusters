@@ -37,7 +37,7 @@ METHODS = {"static_shortest": ("static", None), "static_tracked": ("static", "sh
            "transformer_minmax_lp": ("static", "shortest"),
            "tcn_minmax_lp": ("static", "shortest"), "persistence_minmax_lp": ("static", "shortest")}
 
-for _s in (0, 1, 2, 5, 10, 20):
+for _s in (0, 1, 2, 5, 10, 20, 40):
     METHODS["dist_lp_s%d" % _s] = ("static", "shortest")
 
 class PathPolicy:
