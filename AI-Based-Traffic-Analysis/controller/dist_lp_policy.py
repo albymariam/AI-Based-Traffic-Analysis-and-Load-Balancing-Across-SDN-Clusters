@@ -15,8 +15,9 @@ from controller.lp_policy import LPReroute
 
 
 class DistLPReroute(LPReroute):
-    def __init__(self, api, tele, runner, G, topo_cfg, exp_cfg, run_dir, t0, arch="transformer", stale_s=0.0):
-        super(DistLPReroute, self).__init__(api, tele, runner, G, topo_cfg, exp_cfg, run_dir, t0, arch)
+    def __init__(self, api, tele, runner, G, topo_cfg, exp_cfg, run_dir, t0, arch="transformer", stale_s=0.0,
+                 demand_source=None):
+        super(DistLPReroute, self).__init__(api, tele, runner, G, topo_cfg, exp_cfg, run_dir, t0, arch, demand_source)
         self.fp.close()                                  # re-open plans.csv with two extra columns
         self.fp = open(run_dir / "plans.csv", "w", newline="")
         self.wp = csv.writer(self.fp)
@@ -49,7 +50,7 @@ class DistLPReroute(LPReroute):
         if X is None:
             return
         now = time.time() - self.t0
-        els_all = self.runner.elephants()
+        els_all = self._demand_view(self.runner.elephants(), now)     # oracle rates or byte-counter estimates
         self.ring.append(dict(t=now, X=X, els=els_all))   # global snapshot history (stale views come from here)
         if self.stale_s <= 0:
             st = self.ring[-1]

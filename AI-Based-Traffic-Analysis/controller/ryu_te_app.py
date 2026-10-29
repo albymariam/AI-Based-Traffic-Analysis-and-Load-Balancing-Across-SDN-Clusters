@@ -42,6 +42,8 @@ class TEApp(app_manager.RyuApp):
         self.mode = "static"
         self.dps = {}
         self.port_stats = {}
+        self.flow_stats = {}   # (src,dst,dport,proto) -> {"bytes","dur_s","seen"}: ingress-switch rule counters of pinned flows
+        self.ip2sw = {pm.host_ip(s): s for s in self.cfg["switches"]}
         self.flows = {}        # (src,dst,dport,protos) -> {"path": [...]}
         self.flowmods = 0      # per-flow FlowMods only (base installs not counted)
         poll = float(pm.load_yaml("experiment")["telemetry"]["poll_interval_s"])
@@ -169,7 +171,27 @@ class TEApp(app_manager.RyuApp):
         while True:
             for dp in list(self.dps.values()):
                 dp.send_msg(dp.ofproto_parser.OFPPortStatsRequest(dp, 0, dp.ofproto.OFPP_ANY))
+                dp.send_msg(dp.ofproto_parser.OFPFlowStatsRequest(dp, 0, dp.ofproto.OFPTT_ALL, dp.ofproto.OFPP_ANY,
+                                                                  dp.ofproto.OFPG_ANY, 0, 0, dp.ofproto_parser.OFPMatch()))
             hub.sleep(self.poll_interval)
+
+    @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
+    def _on_flow_stats(self, ev):
+        """Keep only the per-flow (priority 100) rule at the flow's INGRESS switch, so each flow is counted once."""
+        dp = ev.msg.datapath
+        now = time.time()
+        for st in ev.msg.body:
+            if st.priority != PRIO_FLOW:
+                continue
+            m = st.match
+            src = self.ip2sw.get(m.get("ipv4_src"))
+            dst = self.ip2sw.get(m.get("ipv4_dst"))
+            proto = m.get("ip_proto")
+            if src is None or dst is None or src != dp.id or proto not in (6, 17):
+                continue
+            dport = m.get("udp_dst") if proto == 17 else m.get("tcp_dst")
+            self.flow_stats[(src, dst, dport, proto)] = dict(
+                bytes=st.byte_count, dur_s=st.duration_sec + st.duration_nsec * 1e-9, seen=now)
 
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _on_port_stats(self, ev):
@@ -202,6 +224,14 @@ class TEController(ControllerBase):
     @route("te_ports", "/te/ports", methods=["GET"])
     def ports(self, req, **kw):
         return _json({"ts": time.time(), "switches": self.app.port_stats})
+
+    @route("te_flowstats", "/te/flowstats", methods=["GET"])
+    def flowstats(self, req, **kw):
+        now = time.time()
+        rows = [dict(src=k[0], dst=k[1], dport=k[2], proto=k[3], bytes=v["bytes"], dur_s=v["dur_s"],
+                     age_s=round(now - v["seen"], 3))
+                for k, v in list(self.app.flow_stats.items()) if now - v["seen"] < 5.0]
+        return _json({"ts": now, "flows": rows})
 
     @route("te_linkflows", "/te/linkflows", methods=["GET"])
     def linkflows(self, req, **kw):
