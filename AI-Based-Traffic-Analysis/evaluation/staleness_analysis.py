@@ -18,7 +18,9 @@ RUNS = Path(os.environ.get("RUNS_DIR", ROOT / "results/runs"))      # RUNS_DIR=.
 TAB, FIG = ROOT / "results/tables", ROOT / "results/figures"
 TAB.mkdir(parents=True, exist_ok=True)
 FIG.mkdir(parents=True, exist_ok=True)
-SCEN, CENTRAL, STATIC = "abilene_replay", "transformer_minmax_lp", "static_shortest"
+EST = os.environ.get("DEMAND", "oracle") == "counters"        # DEMAND=counters -> analyse the *_est runs (demand from flow counters)
+SFX = "_est" if EST else ""
+SCEN, CENTRAL, STATIC = "abilene_replay", "transformer_minmax_lp" + SFX, "static_shortest"
 METRICS = ["mean_mlu", "p95_mlu", "jfi", "rtt_ms_mean", "fct_p95_s", "reroutes_total", "reversal_rate",
            "link_drops_total"]
 LINK_REC, FLOW_REC = 64, 48          # assumed bytes per synchronised link / flow record (MODELLED, not measured)
@@ -66,7 +68,7 @@ for d in sorted(RUNS.glob("*/")):
             r["dir"] = str(d)
             rows.append(r)
 df = pd.DataFrame(rows).sort_values("dir").drop_duplicates(["method", "seed"], keep="last")
-m = df.method.str.extract(r"^dist_lp_s(\d+)$")[0]
+m = df.method.str.extract(r"^dist_lp_%ss(\d+)$" % ("est_" if EST else ""))[0]
 df["delta"] = m.astype(float)
 df["reversal_rate"] = [reversal_rate(Path(d)) for d in df.dir]
 df["sync_kBps_modelled"] = [sync_kBps(Path(d), dl) for d, dl in zip(df.dir, df.delta)]
@@ -75,7 +77,7 @@ dist = df[df.delta.notna()]
 deltas = sorted(dist.delta.unique())
 cent, stat = df[df.method == CENTRAL], df[df.method == STATIC]
 if dist.empty or cent.empty:
-    raise SystemExit("need dist_lp_s* runs and transformer_minmax_lp runs for %s" % SCEN)
+    raise SystemExit("need dist_lp_%ss* runs and %s runs for %s" % ("est_" if EST else "", CENTRAL, SCEN))
 
 # ---- table
 out = []
@@ -84,7 +86,7 @@ for label, g in [("static", stat), ("centralised", cent)] + [("dist_s%d" % dl, d
     for mt in METRICS + ["sync_kBps_modelled"]:
         row[mt] = "%.3f ± %.3f" % (g[mt].mean(), ci95(g[mt])) if g[mt].notna().any() else ""
     out.append(row)
-pd.DataFrame(out).to_csv(TAB / "staleness_summary.csv", index=False)
+pd.DataFrame(out).to_csv(TAB / ("staleness_summary%s.csv" % SFX), index=False)
 
 # ---- paired tests (same seeds = same traffic): vs static, vs centralised, vs the fresh-state distributed control (delta 0)
 tests = []
@@ -102,7 +104,7 @@ for dl in deltas:
                 tests.append(dict(delta_s=dl, vs=ref, metric=mt, n=len(j), mean_diff=round(dd.mean(), 4),
                                   ci95=round(ci95(dd), 4), pct=round(100 * dd.mean() / j.ref.mean(), 2),
                                   p_value=round(stats.ttest_rel(j.dist, j.ref).pvalue, 4)))
-pd.DataFrame(tests).to_csv(TAB / "staleness_paired.csv", index=False)
+pd.DataFrame(tests).to_csv(TAB / ("staleness_paired%s.csv" % SFX), index=False)
 
 # ---- figure
 fig, axs = plt.subplots(2, 4, figsize=(17, 7))
@@ -123,6 +125,6 @@ for ax in axs.ravel()[len(METRICS):]:
     ax.axis("off")
 fig.suptitle("Effect of controller-state staleness (%s, mean ± 95%% CI, n=%d seeds)" % (SCEN, dist.seed.nunique()))
 fig.tight_layout()
-fig.savefig(FIG / "staleness_sweep.png", dpi=200)
+fig.savefig(FIG / ("staleness_sweep%s.png" % SFX), dpi=200)
 print(pd.DataFrame(out).to_string(index=False))
 print("\nwrote staleness_summary.csv, staleness_paired.csv, staleness_sweep.png")

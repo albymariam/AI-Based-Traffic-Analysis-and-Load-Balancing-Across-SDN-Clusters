@@ -61,3 +61,8 @@ lp:
   stickiness: 0.25         # prefer a flow's current path when rounding the LP split
   max_moves_per_tick: 6
   hop_epsilon: 0.001       # tie-break toward shorter paths
+  demand_source: oracle    # oracle = configured elephant rate | counters = estimated from OpenFlow flow byte counters (methods *_est)
+  est_window_s: 3.0        # rate estimation window
+  est_min_span_s: 1.0      # minimum counter history before a flow has an estimate
+  est_hold_s: 5.0          # keep the last estimate this long after a rule is re-installed
+  est_min_mbps: 0.01       # ignore flows estimated below this

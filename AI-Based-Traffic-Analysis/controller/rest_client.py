@@ -26,6 +26,7 @@ class TEClient:
     def stats(self):      return self._get("/stats")
     def ports(self):      return self._get("/ports")
     def linkflows(self):  return self._get("/linkflows")
+    def flowstats(self):  return self._get("/flowstats")
 
     def wait_switches(self, n, timeout=60):
         t0 = time.time()

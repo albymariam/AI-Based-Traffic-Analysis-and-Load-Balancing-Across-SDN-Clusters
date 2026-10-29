@@ -9,6 +9,7 @@ import torch
 
 from common.config import ROOT
 from common.features import FEATURES
+from controller.demand_estimator import FlowRateEstimator
 from models.dataset import normalize
 from models.transformer_predictor import build_model
 from optimization.minmax_routing import solve_minmax
@@ -16,7 +17,7 @@ from topology.mininet_topology import get_k_shortest_paths
 
 
 class LPReroute(threading.Thread):
-    def __init__(self, api, tele, runner, G, topo_cfg, exp_cfg, run_dir, t0, arch="transformer"):
+    def __init__(self, api, tele, runner, G, topo_cfg, exp_cfg, run_dir, t0, arch="transformer", demand_source=None):
         super(LPReroute, self).__init__(daemon=True)
         torch.set_num_threads(1)
         self.arch = arch                 # "persistence" = the same LP fed with the last observed utilisation (ablation)
@@ -28,6 +29,19 @@ class LPReroute(threading.Thread):
         self.model.load_state_dict(ck["state"])
         self.model.eval()
         self.lp = exp_cfg["lp"]
+        # demand_source: "oracle" = configured rate of each elephant (original runs);
+        #                "counters" = rate estimated from OpenFlow per-flow byte counters (no knowledge of the schedule)
+        self.demand_source = demand_source or self.lp.get("demand_source", "oracle")
+        if self.demand_source not in ("oracle", "counters"):
+            raise ValueError("demand_source must be oracle|counters")
+        self.est = None
+        if self.demand_source == "counters":
+            self.est = FlowRateEstimator(self.lp.get("est_window_s", 3.0), self.lp.get("est_min_span_s", 1.0),
+                                         self.lp.get("est_hold_s", 5.0))
+            self.min_est = float(self.lp.get("est_min_mbps", 0.01))
+            self.fe = open(run_dir / "demand_est.csv", "w", newline="")
+            self.we = csv.writer(self.fe)
+            self.we.writerow(["t", "flow_id", "src", "dst", "rate_true_mbps", "rate_est_mbps"])   # true value is LOGGED ONLY, never used
         self.api, self.tele, self.runner, self.G, self.t0 = api, tele, runner, G, t0
         self.run_dir = run_dir
         self.cap = float(topo_cfg["emulated_capacity_mbps"])
@@ -43,6 +57,32 @@ class LPReroute(threading.Thread):
         self.wp.writerow(["t", "n_elephants", "n_commodities", "theta_cur", "theta_lp_frac", "theta_plan",
                           "infer_ms", "lp_ms", "applied", "n_moves"])
         self._halt = threading.Event()
+
+    def _demand_view(self, els, now):
+        """Elephants as the controller may see them. With demand_source=counters the rate is the byte-counter estimate;
+        a flow with no estimate yet is left out (its traffic then shows up as background load)."""
+        if self.est is None:
+            return els
+        try:
+            rows = self.api.flowstats()["flows"]
+        except Exception as ex:                         # keep the last estimates for a missed poll
+            print("[lp_policy] flowstats failed:", repr(ex))
+            rows = []
+        tw = time.time()
+        self.est.update({(r["src"], r["dst"], r["dport"], r["proto"]): (r["bytes"], r["dur_s"]) for r in rows}, tw)
+        out = []
+        for e in els:
+            proto = 17 if 17 in e["protos"] else 6
+            r = self.est.rate((e["src"], e["dst"], e["port"], proto), tw)
+            self.we.writerow([round(now, 2), e["id"], e["src"], e["dst"], round(e["rate"], 4),
+                              "" if r is None else round(r, 4)])
+            if r is None or r < self.min_est:
+                continue
+            d = dict(e)
+            d["rate"] = r
+            out.append(d)
+        self.fe.flush()
+        return out
 
     def _cands(self, s, d):
         if (s, d) not in self.cache:
@@ -98,7 +138,7 @@ class LPReroute(threading.Thread):
         X = self._windows()
         if X is None:
             return
-        els = self.runner.elephants()
+        els = self._demand_view(self.runner.elephants(), time.time() - self.t0)
         if not els:
             return
         uhat = self._forecast(X)
@@ -173,3 +213,5 @@ class LPReroute(threading.Thread):
         self.join(timeout=3)
         self.fh.close()
         self.fp.close()
+        if self.est is not None:
+            self.fe.close()
