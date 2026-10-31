@@ -1,5 +1,5 @@
 setuptools==65.5.0
-eventlet==0.31.1
+eventlet==0.30.2
 webob
 routes
 requests
