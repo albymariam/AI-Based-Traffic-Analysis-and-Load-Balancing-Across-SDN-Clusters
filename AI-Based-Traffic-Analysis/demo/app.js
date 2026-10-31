@@ -76,6 +76,7 @@ function simLP(d, a, b, kind) {
   });
   return {m, xs, fs};
 }
+const ALERT = 0.8;   // M1 only acts when the forecast says a link will pass 80%
 // M1: forecast + hysteresis heuristic (reroute only if predicted gain >= threshold, with a 2-step cooldown)
 function simM1(d, a, b, kind, thr) {
   const m = [], xs = [], fs = [], ch = []; let x = 1, last = -99, n = 0;
@@ -83,7 +84,7 @@ function simM1(d, a, b, kind, thr) {
     const f = forecast(kind, d.slice(0, t), v), cand = share(f, a, b);
     const keep = mluOf(x, f, a, b), nw = mluOf(cand, f, a, b);
     let changed = false;
-    if (keep > nw && (keep - nw) / keep * 100 >= thr && t - last >= 2) { x = cand; last = t; n++; changed = true; }
+    if (keep >= ALERT && keep > nw && (keep - nw) / keep * 100 >= thr && t - last >= 2) { x = cand; last = t; n++; changed = true; }
     fs.push(f); xs.push(x); ch.push(changed); m.push(mluOf(x, v, a, b));
   });
   return {m, xs, fs, ch, reroutes: n};
@@ -111,7 +112,7 @@ function drawBars(id, labels, values, colors, o = {}) {
     ctx.fillStyle = "#52657c"; ctx.textAlign = "center"; ctx.fillText(l, x + g * .27, h - 13); ctx.fillText(f(values[i]), x + g * .27, y - 5);
   });
 }
-function drawLines(id, series, tick) {
+function drawLines(id, series, tick, marks = []) {
   const k = ctxFor(id, 230); if (!k) return;
   const {ctx, w, h} = k, pad = {l: 42, r: 15, t: 30, b: 28}, cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
   const n = series[0].values.length;
@@ -126,6 +127,7 @@ function drawLines(id, series, tick) {
     s.values.forEach((v, i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))); ctx.stroke();
   });
   ctx.setLineDash([]); ctx.lineWidth = 1;
+  marks.forEach(i => { ctx.strokeStyle = "#3d87d5"; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(X(i), pad.t); ctx.lineTo(X(i), pad.t + ch); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#3d87d5"; ctx.beginPath(); ctx.arc(X(i), pad.t + ch, 4, 0, 6.283); ctx.fill(); });
   if (tick != null) { ctx.strokeStyle = "#8090a3"; ctx.beginPath(); ctx.moveTo(X(tick), pad.t); ctx.lineTo(X(tick), pad.t + ch); ctx.stroke(); }
   let lx = pad.l; ctx.textAlign = "left";
   series.forEach(s => { ctx.fillStyle = s.color; ctx.fillRect(lx, 10, 14, 3); ctx.fillStyle = "#52657c"; ctx.fillText(s.name, lx + 19, 15); lx += 28 + ctx.measureText(s.name).width; });
@@ -145,8 +147,10 @@ function runM1() {
   const x = p.xs[t], A = a + x * d[t], B = b + (1 - x) * d[t];
   $("m1-forecast").textContent = p.fs[t].toFixed(0) + " Mbps";
   $("m1-real").textContent = "Real demand " + d[t].toFixed(0) + " Mbps";
-  $("m1-decision").textContent = p.ch[t] ? "REROUTE" : "KEEP ROUTE";
-  $("m1-decision-note").textContent = p.ch[t] ? "Predicted gain passed the threshold" : (x === 1 ? "All traffic on shortest path A" : "Keeping the current split");
+  const marks = p.ch.map((c, i) => c ? i : -1).filter(i => i >= 0), past = marks.filter(i => i <= t), lastR = past.length ? past[past.length - 1] : null;
+  const split = (x * 100).toFixed(0) + "% / " + ((1 - x) * 100).toFixed(0) + "%";
+  $("m1-decision").textContent = p.ch[t] ? "REROUTE" : (lastR != null ? "ON NEW SPLIT" : "ON PATH A");
+  $("m1-decision-note").textContent = p.ch[t] ? "Predicted gain passed the threshold" : (lastR != null ? "Rerouted at step " + lastR + ", holding " + split : "No reroute yet: no link is forecast above 80%, or the gain is below the threshold");
   $("m1-mlu").textContent = (p.m[t] * 100).toFixed(1) + "%";
   $("m1-change").textContent = "Static " + (st[t] * 100).toFixed(1) + "% → policy " + (p.m[t] * 100).toFixed(1) + "%";
   [["a", A], ["b", B]].forEach(([k, v]) => {
@@ -156,15 +160,15 @@ function runM1() {
   });
   drawLines("m1-chart", [
     {name: "Static shortest path", values: st, color: "#c0392b"},
-    {name: "Forecast + hysteresis (M1)", values: p.m, color: "#3d87d5"}], t);
+    {name: "Forecast + hysteresis (M1)", values: p.m, color: "#3d87d5"}], t, marks);
   const rec = (DATA.summary || []).filter(r => ["static_shortest", "lstm_hysteresis"].includes(r.method));
   const rs = rec.find(r => r.method === "static_shortest"), rl = rec.find(r => r.method === "lstm_hysteresis");
-  $("m1-summary").innerHTML = `<b>This replay (${d.length} steps):</b> mean MLU static ${fmt(s0.mean)} → policy ${fmt(s1.mean)}; peak ${fmt(s0.peak)} → ${fmt(s1.peak)}; steps above 100%: ${s0.over} → ${s1.over}; reroutes: ${p.reroutes}.` +
+  $("m1-summary").innerHTML = `<b>This replay (${d.length} steps):</b> mean MLU static ${fmt(s0.mean)} → policy ${fmt(s1.mean)}; peak ${fmt(s0.peak)} → ${fmt(s1.peak)}; steps above 100%: ${s0.over} → ${s1.over}; reroutes: ${p.reroutes}${marks.length ? " (at step " + marks.join(", ") + ", dots on the chart)" : ""}.` +
     (rs && rl ? `<br><b>Measured in Mininet (10 seeds):</b> static ${fmt(rs.mean)} vs LSTM + hysteresis ${fmt(rl.mean)}. The hysteresis policy helps a little; the LP in M2 helps much more.` : "");
   const lines = [
     `Step ${t}: real demand ${d[t].toFixed(0)} Mbps; forecast ${p.fs[t].toFixed(0)} Mbps (${$("m1-fc").selectedOptions[0].text}).`,
     `Static routing puts everything on Path A: Path A ${(a + d[t]).toFixed(0)} Mbps, Path B ${b} Mbps, max utilization ${(st[t] * 100).toFixed(1)}%.`,
-    p.ch[t] ? `Hysteresis check passed (predicted gain ≥ ${thr}%): the policy moved to a ${(x * 100).toFixed(0)}% / ${((1 - x) * 100).toFixed(0)}% split.` : `No change this step: the predicted gain was below ${thr}% or the cooldown was active.`,
+    p.ch[t] ? `Hysteresis check passed (predicted gain ≥ ${thr}%): the policy moved to a ${(x * 100).toFixed(0)}% / ${((1 - x) * 100).toFixed(0)}% split.` : (lastR != null ? `No new change this step. The policy moved to a ${split} split at step ${lastR} and keeps it until a bigger predicted gain (≥ ${thr}%) appears.` : `No change yet: no link is forecast above 80%, or the predicted gain is below ${thr}%, or the cooldown is active.`),
     `Result: Path A ${A.toFixed(0)} Mbps, Path B ${B.toFixed(0)} Mbps, max utilization ${(p.m[t] * 100).toFixed(1)}%.`];
   $("m1-log").innerHTML = lines.map((l, i) => `<div class="log-line"><b>0${i + 1}</b>${l}</div>`).join("");
 }

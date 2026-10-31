@@ -54,14 +54,14 @@
         <div class="panel">
           <div class="panel-title"><div><h3>Traffic replay controls</h3><p>Demand follows the traffic source chosen at the top.</p></div><span class="status">SIMULATED</span></div>
           <div class="tiny-note" id="src-note"></div>
-          <label>Existing load · Path A <output id="m1-a-out"></output></label><input id="m1-a" type="range" min="0" max="60" value="30" step="5">
-          <label>Existing load · Path B <output id="m1-b-out"></output></label><input id="m1-b" type="range" min="0" max="60" value="20" step="5">
+          <label>Existing load · Path A <output id="m1-a-out"></output></label><input id="m1-a" type="range" min="0" max="60" value="20" step="5">
+          <label>Existing load · Path B <output id="m1-b-out"></output></label><input id="m1-b" type="range" min="0" max="60" value="10" step="5">
           <label>Forecaster used by the policy</label>
           <select id="m1-fc"><option value="persistence">Persistence (last value)</option><option value="trend">Linear trend</option><option value="ma">Moving average (3)</option></select>
           <label>Reroute threshold (hysteresis) <output id="m1-threshold-out"></output></label><input id="m1-threshold" type="range" min="0" max="40" value="10" step="1">
           <label>Time step (5 min each) <output id="m1-tick-out"></output></label><input id="m1-tick" type="range" min="0" max="71" value="40" step="1">
           <button class="primary-btn full" id="run-m1">▶ Play replay</button>
-          <p class="tiny-note">The forecaster is a simple rule that uses past demand only. The trained LSTM checkpoint is not loaded in the browser.</p>
+          <p class="tiny-note">The policy reroutes only when the forecast says a link will pass 80% and the gain beats the threshold. The forecaster is a simple rule on past demand; the trained LSTM is not loaded in the browser.</p>
         </div>
         <div class="panel">
           <div class="panel-title"><div><h3>Network topology</h3><p>Two alternative paths between source and destination.</p></div><span class="legend"><i class="blue-dot"></i> Path A <i class="green-dot"></i> Path B</span></div>
