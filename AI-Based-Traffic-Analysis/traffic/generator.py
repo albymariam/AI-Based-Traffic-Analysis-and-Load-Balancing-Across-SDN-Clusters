@@ -237,7 +237,7 @@ class FlowRunner(threading.Thread):
                     pass
             self.rows.append(row)
             with self.lock:
-                del self.active[proc]
+                self.active.pop(proc, None)
 
     # --- used by the online TE policy ---
     def elephants(self):
