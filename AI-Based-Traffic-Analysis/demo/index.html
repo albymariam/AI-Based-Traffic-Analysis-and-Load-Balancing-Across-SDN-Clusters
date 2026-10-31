@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI-SDN Control Center</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">◈</div><div><b>AI-SDN</b><small>CONTROL CENTER</small></div></div>
+    <div class="side-label">WORKSPACE</div>
+    <button class="nav active" data-page="overview">▦ <span>Overview</span></button>
+    <button class="nav" data-page="m1">◉ <span>M1 · LSTM Heuristic</span></button>
+    <button class="nav" data-page="m2">⌘ <span>M2 · Forecast + Optimize</span></button>
+    <button class="nav" data-page="m3">⇄ <span>M3 · Distributed SDN</span></button>
+    <button class="nav" data-page="results">▤ <span>Results & Comparison</span></button>
+    <div class="sidebar-bottom"><span class="pulse"></span> Demo environment <small>LOCAL SIMULATION</small></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div><div class="eyebrow">NETWORK INTELLIGENCE PLATFORM</div><h1 id="page-title">Overview</h1></div>
+      <div class="top-actions"><label class="src-label">Traffic <select id="src"></select></label><span class="live-dot"></span><span>System online</span><button class="outline-btn" id="reset-all">↺ Reset demo</button></div>
+    </header>
+
+    <section class="page active" id="page-overview">
+      <div class="hero">
+        <div><div class="eyebrow bright">PROJECT DEMONSTRATION</div><h2>Predict. Optimize.<br><em>Balance the network.</em></h2>
+        <p>Explore three approaches to intelligent traffic engineering across Software-Defined Networking clusters.</p>
+        <button class="primary-btn" data-goto="m1">Start interactive demo <span>→</span></button></div>
+        <div class="hero-graphic"><div class="orbit orbit-a"></div><div class="orbit orbit-b"></div><div class="core">AI<br><small>SDN</small></div><i class="node n1"></i><i class="node n2"></i><i class="node n3"></i><i class="node n4"></i><i class="node n5"></i></div>
+      </div>
+      <div class="metric-grid">
+        <article class="metric-card"><span>Methodologies</span><strong>03</strong><small>M1 · M2 · M3</small></article>
+        <article class="metric-card"><span>Forecasting families</span><strong>03</strong><small>LSTM · TCN · Transformer</small></article>
+        <article class="metric-card"><span>Recorded replay result</span><strong>14.8%</strong><small>Lower mean MLU vs static*</small></article>
+        <article class="metric-card"><span>Controller study</span><strong>3-node</strong><small>ONOS cluster conditions*</small></article>
+      </div>
+      <div class="section-head"><div><div class="eyebrow">THE THREE METHODOLOGIES</div><h2>Explore each approach</h2></div><span class="muted">Select a method to interact</span></div>
+      <div class="method-grid">
+        <article class="method-card m1-card"><div class="method-num">01 / M1</div><div class="method-icon">◉</div><h3>Predict & react</h3><p>LSTM forecasting with a heuristic rerouting policy and hysteresis to avoid unnecessary route changes.</p><button class="text-btn" data-goto="m1">Open M1 →</button></article>
+        <article class="method-card m2-card"><div class="method-num">02 / M2</div><div class="method-icon">⌘</div><h3>Forecast & optimize</h3><p>Compare forecasting models, then allocate traffic using a min-max link-utilization objective.</p><button class="text-btn" data-goto="m2">Open M2 →</button></article>
+        <article class="method-card m3-card"><div class="method-num">03 / M3</div><div class="method-icon">⇄</div><h3>Coordinate controllers</h3><p>Explore how delayed synchronization and stale network state can affect distributed decisions.</p><button class="text-btn" data-goto="m3">Open M3 →</button></article>
+      </div>
+      <div class="notice"><b>How to read this demo</b><p>The M1, M2 and M3 pages replay traffic through simple rules in your browser (a simulation). The Results page shows numbers measured in the project's Mininet/Ryu/ONOS experiments. Neither is a live controller.</p></div>
+      <div class="callout"><b>Main finding:</b> the min-max LP gives the gain (about 15% lower mean MLU on Abilene replay). Which forecaster feeds it makes almost no difference, and a stale controller view up to 20 s costs nothing measurable.</div>
+    </section>
+
+    <section class="page" id="page-m1">
+      <div class="page-intro"><div><div class="eyebrow">METHODOLOGY 01</div><h2>LSTM forecasting + heuristic rerouting</h2><p>Predict a traffic increase, then decide whether the improvement on an alternate path is large enough to justify rerouting.</p></div><span class="tag tag-blue">M1 · REACTIVE POLICY</span></div>
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title"><div><h3>Traffic replay controls</h3><p>Demand follows the traffic source chosen at the top.</p></div><span class="status">SIMULATED</span></div>
+          <div class="tiny-note" id="src-note"></div>
+          <label>Existing load · Path A <output id="m1-a-out"></output></label><input id="m1-a" type="range" min="0" max="60" value="30" step="5">
+          <label>Existing load · Path B <output id="m1-b-out"></output></label><input id="m1-b" type="range" min="0" max="60" value="20" step="5">
+          <label>Forecaster used by the policy</label>
+          <select id="m1-fc"><option value="persistence">Persistence (last value)</option><option value="trend">Linear trend</option><option value="ma">Moving average (3)</option></select>
+          <label>Reroute threshold (hysteresis) <output id="m1-threshold-out"></output></label><input id="m1-threshold" type="range" min="0" max="40" value="10" step="1">
+          <label>Time step (5 min each) <output id="m1-tick-out"></output></label><input id="m1-tick" type="range" min="0" max="71" value="40" step="1">
+          <button class="primary-btn full" id="run-m1">▶ Play replay</button>
+          <p class="tiny-note">The forecaster is a simple rule that uses past demand only. The trained LSTM checkpoint is not loaded in the browser.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-title"><div><h3>Network topology</h3><p>Two alternative paths between source and destination.</p></div><span class="legend"><i class="blue-dot"></i> Path A <i class="green-dot"></i> Path B</span></div>
+          <svg class="topology" viewBox="0 0 620 255" role="img" aria-label="Two path network topology">
+            <path id="m1-path-a" class="link path-a" d="M65 125 L210 65 L410 65 L555 125"/>
+            <path id="m1-path-b" class="link path-b" d="M65 125 L210 190 L410 190 L555 125"/>
+            <g class="net-node"><circle cx="65" cy="125" r="24"/><text x="65" y="130">S</text></g>
+            <g class="net-node"><circle cx="210" cy="65" r="22"/><text x="210" y="70">1</text></g>
+            <g class="net-node"><circle cx="410" cy="65" r="22"/><text x="410" y="70">2</text></g>
+            <g class="net-node"><circle cx="210" cy="190" r="22"/><text x="210" y="195">3</text></g>
+            <g class="net-node"><circle cx="410" cy="190" r="22"/><text x="410" y="195">4</text></g>
+            <g class="net-node"><circle cx="555" cy="125" r="24"/><text x="555" y="130">D</text></g>
+            <text class="edge-label" x="300" y="42" id="m1-edge-a">Path A · --%</text>
+            <text class="edge-label" x="300" y="225" id="m1-edge-b">Path B · --%</text>
+          </svg>
+          <div class="bar-row"><span>Path A utilization</span><div class="bar"><i id="m1-bar-a"></i></div><b id="m1-util-a">--</b></div>
+          <div class="bar-row"><span>Path B utilization</span><div class="bar"><i id="m1-bar-b"></i></div><b id="m1-util-b">--</b></div>
+        </div>
+      </div>
+      <div class="three-col">
+        <article class="result-tile"><span>Forecast for this step</span><strong id="m1-forecast">--</strong><small id="m1-real">Real demand --</small></article>
+        <article class="result-tile"><span>Rerouting decision</span><strong id="m1-decision">Ready</strong><small id="m1-decision-note">Run the simulation</small></article>
+        <article class="result-tile"><span>Maximum utilization</span><strong id="m1-mlu">--</strong><small id="m1-change">Static vs policy</small></article>
+      </div>
+      <div class="panel"><div class="panel-title"><div><h3>Maximum link utilization over time</h3><p>Decisions use the forecast; the plotted load uses the real demand. Lower is better.</p></div></div><div class="chart-wrap"><canvas id="m1-chart" height="230"></canvas></div><div class="callout" id="m1-summary"></div></div>
+      <div class="panel"><div class="panel-title"><div><h3>What happened?</h3><p>Step-by-step policy explanation.</p></div></div><div class="log" id="m1-log"></div></div>
+    </section>
+
+    <section class="page" id="page-m2">
+      <div class="page-intro"><div><div class="eyebrow">METHODOLOGY 02</div><h2>Forecast-then-optimize</h2><p>Compare forecasting models and use a min-max objective to distribute traffic across candidate paths.</p></div><span class="tag tag-green">M2 · GLOBAL OPTIMIZATION</span></div>
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title"><div><h3>Forecast model</h3><p>Recorded accuracy from prediction_error_m2.csv.</p></div></div>
+          <div class="model-picker" id="model-picker">
+            <button class="model-choice selected" data-model="Transformer">Transformer</button>
+            <button class="model-choice" data-model="TCN">TCN</button>
+            <button class="model-choice" data-model="LSTM">LSTM</button>
+            <button class="model-choice" data-model="Persistence">Persistence</button>
+            <button class="model-choice" data-model="Moving average">Moving average</button>
+          </div>
+          <div class="three-col compact">
+            <div class="result-tile"><span>Overall MAE</span><strong id="m2-mae">--</strong></div>
+            <div class="result-tile"><span>Overall RMSE</span><strong id="m2-rmse">--</strong></div>
+            <div class="result-tile"><span>sMAPE (&gt;5%)</span><strong id="m2-smape">--</strong></div>
+          </div>
+          <div class="callout" id="m2-simnote"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title"><div><h3>Min-max routing optimizer</h3><p>Illustrative two-path allocation using equal link capacities.</p></div><span class="status">SIMULATED</span></div>
+          <label>Background load · Path A <output id="m2-a-out"></output></label><input id="m2-a" type="range" min="0" max="60" value="30" step="5">
+          <label>Background load · Path B <output id="m2-b-out"></output></label><input id="m2-b" type="range" min="0" max="60" value="20" step="5">
+          <label>Time step (5 min each) <output id="m2-tick-out"></output></label><input id="m2-tick" type="range" min="0" max="71" value="40" step="1">
+          <button class="primary-btn full green-btn" id="run-m2">▶ Play replay</button>
+          <p class="tiny-note">Two-path min-max split every step. It is not a call to CVXPY or the repository's LP.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div><h3>Routing allocation comparison</h3><p>Static shortest path vs optimized split.</p></div></div>
+        <div class="allocation-grid">
+          <div><h4>Static shortest path</h4><div class="allocation-number" id="m2-static-a">120 Mbps</div><div class="stackbar"><i id="m2-static-bar-a"></i><i id="m2-static-bar-b"></i></div><p class="muted small">All demand sent on Path A (real demand)</p><b id="m2-static-mlu">--</b><small class="muted">Maximum utilization</small></div>
+          <div><h4>Min-max optimized</h4><div class="allocation-number"><span id="m2-opt-a">--</span> / <span id="m2-opt-b">--</span></div><div class="stackbar"><i id="m2-opt-bar-a"></i><i id="m2-opt-bar-b"></i></div><p class="muted small">New demand split between paths</p><b id="m2-opt-mlu">--</b><small class="muted">Maximum utilization</small></div>
+        </div>
+        <div class="chart-wrap"><canvas id="m2-chart" height="230"></canvas></div>
+        <div class="table-scroll" style="margin-top:16px"><table id="m2-table"></table></div>
+        <div class="callout" id="m2-explain"></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-m3">
+      <div class="page-intro"><div><div class="eyebrow">METHODOLOGY 03</div><h2>Distributed controllers & state staleness</h2><p>Explore how delayed information sharing can affect routing decisions and controller response.</p></div><span class="tag tag-amber">M3 · DISTRIBUTED CONTROL</span></div>
+      <div class="panel">
+        <div class="panel-title"><div><h3>Controller cluster</h3><p>Three controllers share network-state updates.</p></div><span class="status">ILLUSTRATION</span></div>
+        <div class="controllers">
+          <div class="controller"><div class="controller-icon">C1</div><b>Controller 1</b><span class="fresh">Fresh state</span><small>Age: <strong id="c1-age">0 s</strong></small></div>
+          <div class="sync-line"><span>State sync</span><i></i><span id="sync-label">0 s delay</span></div>
+          <div class="controller"><div class="controller-icon">C2</div><b>Controller 2</b><span class="fresh" id="c2-state">Synchronized</span><small>Age: <strong id="c2-age">0 s</strong></small></div>
+          <div class="sync-line"><span>State sync</span><i></i><span id="sync-label-2">0 s delay</span></div>
+          <div class="controller"><div class="controller-icon">C3</div><b>Controller 3</b><span class="fresh" id="c3-state">Synchronized</span><small>Age: <strong id="c3-age">0 s</strong></small></div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title"><div><h3>State age</h3><p>Pick one of the delays that were actually measured.</p></div><span class="status">MEASURED</span></div>
+          <label>Added state age <output id="m3-delay-out"></output></label><input id="m3-delay" type="range" min="0" max="4" value="0" step="1">
+          <p class="tiny-note">Values are from the 3-domain emulation with 10 seeds. Known-demand runs: no significant loss up to 20 s; at 40 s mean MLU is +2.2% (Holm p = 0.025). With estimated demand, all ages stay within about 2% and are not significant after Holm correction.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-title"><div><h3>Effect on routing quality</h3><p>Mean max link utilization (known demand). Static = 0.510.</p></div></div>
+          <div class="big-number" id="m3-quality">--</div><div class="quality-track"><i id="m3-quality-bar"></i></div>
+          <div class="three-col compact">
+            <div class="result-tile"><span>State age</span><strong id="m3-age">0 s</strong></div>
+            <div class="result-tile"><span>Change vs 0 s</span><strong id="m3-risk">--</strong></div>
+            <div class="result-tile"><span>Estimated-demand MLU</span><strong id="m3-mode">--</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div><h3>Recorded ONOS controller measurements</h3><p>Archived median REST reroute latency by condition.</p></div><span class="tag tag-purple">PROJECT DATA</span></div>
+        <div class="callout" id="onos-fit" style="margin-top:0;margin-bottom:12px"></div>
+        <div class="table-scroll"><table id="onos-table"><thead><tr><th>Condition</th><th>Added delay / hop</th><th>Successful operations</th><th>Median reroute REST</th><th>Write visibility</th></tr></thead><tbody id="onos-body">
+          <tr><td>Single node</td><td>0 ms</td><td>99.97%</td><td>37.43 ms</td><td>20.95 ms</td></tr>
+          <tr><td>3-node cluster</td><td>0 ms</td><td>100%</td><td>50.39 ms</td><td>22.37 ms</td></tr>
+          <tr><td>Cluster C10</td><td>10 ms</td><td>100%</td><td>273.69 ms</td><td>110.27 ms</td></tr>
+          <tr><td>Cluster C25</td><td>25 ms</td><td>100%</td><td>256.95 ms</td><td>268.89 ms</td></tr>
+          <tr><td>Cluster C50</td><td>50 ms</td><td>100%</td><td>1,098.58 ms</td><td>525.50 ms</td></tr>
+        </tbody></table></div>
+        <p class="tiny-note">Values come from results/tables/onos_m5.csv. The 75 ms/hop condition did not converge and is not shown. The LP loop was not closed inside ONOS; this table measures controller operations only.</p>
+      </div>
+    </section>
+
+    <section class="page" id="page-results">
+      <div class="page-intro"><div><div class="eyebrow">EVIDENCE & EVALUATION</div><h2>Recorded project results</h2><p>Archived result values, separated from the live browser simulations.</p></div><span class="tag tag-purple">REPOSITORY RESULTS</span></div>
+      <div class="notice warning"><b>Reading these results</b><p>Measured in Mininet with Abilene traffic replayed at 60× speed, 10 seeds. Different experiment tables are not directly comparable. The LP gives the gain; the forecaster does not matter much.</p></div>
+      <div class="panel">
+        <div class="panel-title"><div><h3>Forecasting performance</h3><p>Overall horizon metrics · lower is better.</p></div><span class="tag tag-blue">M1 / M2</span></div>
+        <div class="table-scroll"><table><thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>sMAPE (&gt;5%)</th></tr></thead><tbody>
+          <tr><td>Transformer</td><td>0.0120</td><td>0.0244</td><td>6.1535%</td></tr>
+          <tr><td>TCN</td><td>0.0121</td><td>0.0247</td><td>6.1365%</td></tr>
+          <tr><td>LSTM</td><td>0.0134</td><td>0.0259</td><td>6.6974%</td></tr>
+          <tr><td>Persistence</td><td>0.0124</td><td>0.0251</td><td>6.3373%</td></tr>
+          <tr><td>Moving average</td><td>0.0155</td><td>0.0298</td><td>7.4952%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div><h3>Abilene replay routing performance</h3><p>Ten-seed means as reported in the summary table.</p></div><span class="tag tag-green">M1 / M2</span></div>
+        <div class="table-scroll"><table><thead><tr><th>Method</th><th>Mean MLU ↓</th><th>p95 MLU ↓</th><th>Jain fairness</th><th>Mean RTT</th></tr></thead><tbody>
+          <tr><td>Static shortest path</td><td>0.500</td><td>0.695</td><td>0.535</td><td>4.915 ms</td></tr>
+          <tr><td>ECMP</td><td>0.499</td><td>0.695</td><td>0.556</td><td>4.891 ms</td></tr>
+          <tr><td>Round-robin</td><td>0.623</td><td>0.855</td><td>0.630</td><td>5.478 ms</td></tr>
+          <tr><td>LSTM hysteresis</td><td>0.483</td><td>0.677</td><td>0.541</td><td>4.953 ms</td></tr>
+          <tr><td>Persistence + min-max LP</td><td>0.427</td><td>0.648</td><td>0.568</td><td>4.897 ms</td></tr>
+          <tr class="highlight"><td>Transformer + min-max LP</td><td>0.426</td><td>0.644</td><td>0.569</td><td>4.903 ms</td></tr>
+          <tr><td>TCN + min-max LP</td><td>0.429</td><td>0.650</td><td>0.567</td><td>4.923 ms</td></tr>
+        </tbody></table></div>
+        <div class="chart-wrap"><canvas id="results-chart" height="220"></canvas></div>
+        <div class="callout"><b>Recorded comparison:</b> Transformer + min-max LP mean MLU 0.426 vs static shortest path 0.500 — approximately 14.8% relative reduction in this replay table.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div><h3>Distributed state staleness</h3><p>Recorded controller-state emulation results.</p></div><span class="tag tag-amber">M3</span></div>
+        <div class="table-scroll"><table><thead><tr><th>Setting</th><th>Mean MLU</th><th>p95 MLU</th><th>Jain fairness</th><th>Mean RTT</th></tr></thead><tbody>
+          <tr><td>Static</td><td>0.510</td><td>0.666</td><td>0.549</td><td>4.596 ms</td></tr>
+          <tr><td>Centralized</td><td>0.433</td><td>0.623</td><td>0.587</td><td>4.531 ms</td></tr>
+          <tr><td>Distributed · 0 s</td><td>0.435</td><td>0.651</td><td>0.562</td><td>4.525 ms</td></tr>
+          <tr><td>Distributed · 5 s</td><td>0.436</td><td>0.653</td><td>0.564</td><td>4.527 ms</td></tr>
+          <tr><td>Distributed · 10 s</td><td>0.440</td><td>0.672</td><td>0.562</td><td>4.541 ms</td></tr>
+          <tr><td>Distributed · 20 s</td><td>0.440</td><td>0.658</td><td>0.561</td><td>4.521 ms</td></tr>
+          <tr><td>Distributed · 40 s</td><td>0.445</td><td>0.675</td><td>0.559</td><td>4.530 ms</td></tr>
+        </tbody></table></div>
+        <p class="tiny-note">M3 state-staleness values are from controller-independent emulation. They are not proof that the distributed LP policy ran natively across an ONOS/ODL cluster.</p>
+      </div>
+    <div class="panel">
+        <div class="panel-title"><div><h3>Demand estimated from OpenFlow counters</h3><p>Transformer + LP without being told the true demand, vs static.</p></div><span class="tag tag-green">REALISTIC INPUT</span></div>
+        <div class="table-scroll"><table id="est-table"></table></div>
+        <div class="callout" id="est-note"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div><h3>How close to optimal? (offline, Abilene)</h3><p>Mean MLU relative to the optimal multi-commodity flow. 1.0 = optimal.</p></div><span class="tag tag-blue">BOUNDS</span></div>
+        <div class="chart-wrap"><canvas id="bounds-chart" height="220"></canvas></div>
+        <div class="callout">Three candidate paths are enough (1.06). Forcing each flow onto one path ("rounded", 1.22) costs more than having few paths.</div>
+      </div>
+    </section>
+    <footer>AI-SDN Project Demo · Offline browser demo · No external libraries · Numbers from results/tables via data.js</footer>
+  </main>
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
